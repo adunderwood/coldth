@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .camilla import AudioSettings, CamillaClient
+from .camilla import AudioSettings, CamillaClient, SpectrumClient
 from .model import BANDS, MAX_GAIN, MIN_GAIN, GAIN_STEP, ValidationError, flat_bands
 from .store import StateStore
+from .themes import ThemeRegistry
 
 
 def create_app(
@@ -32,6 +34,10 @@ def create_app(
         settings,
     )
     static_dir = Path(__file__).parent / "static"
+    themes = ThemeRegistry(static_dir / "themes")
+    spectrum = SpectrumClient(
+        os.getenv("COLDTH_SPECTRUM_URL", "ws://127.0.0.1:1235")
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -54,6 +60,26 @@ def create_app(
             "range": {"min": MIN_GAIN, "max": MAX_GAIN, "step": GAIN_STEP},
             "engine": camilla.status(),
         }
+
+    @app.get("/api/themes")
+    def get_themes() -> list[dict[str, Any]]:
+        return themes.list()
+
+    @app.websocket("/api/meters")
+    async def meters(socket: WebSocket) -> None:
+        await socket.accept()
+        try:
+            while True:
+                payload: dict[str, Any] = {"stereo": None, "bands": None}
+                try:
+                    payload["stereo"] = await asyncio.to_thread(camilla.levels)
+                except Exception:
+                    pass
+                payload["bands"] = await asyncio.to_thread(spectrum.levels)
+                await socket.send_json(payload)
+                await asyncio.sleep(0.1)
+        except (WebSocketDisconnect, RuntimeError):
+            return
 
     @app.put("/api/eq")
     def set_eq(payload: dict[str, Any]) -> dict[str, Any]:

@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#11120f">
     <title>Coldth</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=4">
-    <script src="/assets/app.js?v=4" defer></script>
+    <link rel="stylesheet" href="/assets/styles.css?v=5">
+    <link id="theme-stylesheet" rel="stylesheet">
+    <script src="/assets/app.js?v=5" defer></script>
   </head>
   <body>
     <main>
@@ -15,10 +16,46 @@
           <p class="eyebrow">Raspberry Pi equalizer</p>
           <h1>Coldth</h1>
         </div>
-        <div id="engine-status" class="status" aria-live="polite">
-          <span></span> Connecting
+        <div class="header-controls">
+          <label class="theme-picker">
+            <span>Faceplate</span>
+            <select id="theme-list" aria-label="Choose faceplate theme"></select>
+          </label>
+          <div id="engine-status" class="status" aria-live="polite">
+            <span></span> Connecting
+          </div>
         </div>
       </header>
+
+      <section class="meters-panel" aria-labelledby="meters-title">
+        <div class="meter-display">
+          <div class="meter-title">
+            <p class="eyebrow">Output level</p>
+            <h2 id="meters-title">Stereo</h2>
+          </div>
+          <div class="stereo-meters">
+            <div class="meter-row" data-channel="0">
+              <span class="channel-label">L</span>
+              <div class="meter-track">
+                <span class="meter-fill"></span>
+                <i class="peak-marker"></i>
+              </div>
+              <output>−∞</output>
+            </div>
+            <div class="meter-row" data-channel="1">
+              <span class="channel-label">R</span>
+              <div class="meter-track">
+                <span class="meter-fill"></span>
+                <i class="peak-marker"></i>
+              </div>
+              <output>−∞</output>
+            </div>
+          </div>
+          <div id="analyzer-status" class="analyzer-status">
+            10-band analyzer standby
+          </div>
+        </div>
+      </section>
 
       <section class="eq-panel" aria-labelledby="eq-title">
         <div class="section-heading">

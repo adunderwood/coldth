@@ -27,7 +27,7 @@ coldth = "coldth.main:run"
 where = ["src"]
 
 [tool.setuptools.package-data]
-coldth = ["static/*"]
+coldth = ["static/*", "static/themes/*/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

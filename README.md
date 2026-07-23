@@ -49,8 +49,25 @@ Environment variables:
 - `COLDTH_HOST` — web bind address (default: `0.0.0.0`)
 - `COLDTH_PORT` — web port (default: `8080`)
 - `COLDTH_CAMILLADSP_URL` — engine socket (default: `ws://127.0.0.1:1234`)
+- `COLDTH_SPECTRUM_URL` — optional ten-channel analyzer socket (default:
+  `ws://127.0.0.1:1235`)
 - `COLDTH_CAPTURE_DEVICE` — CamillaDSP ALSA capture device
 - `COLDTH_PLAYBACK_DEVICE` — CamillaDSP ALSA playback device
 
 See [docs/audio-architecture.md](docs/audio-architecture.md) for the Pi-specific
 audio path and current assumptions.
+
+## Faceplates and meters
+
+Coldth includes two faceplates: **Original Yellow** and **Black 1987**. The
+selection is saved in the browser. Faceplates are declarative CSS packages
+under `src/coldth/static/themes`; each directory contains a `theme.json`
+manifest and a `theme.css` stylesheet. They cannot add scripts or change the
+audio configuration.
+
+The stereo meters use live playback RMS and peak levels from the main
+CamillaDSP instance. The matching ten-band illumination is deliberately
+optional: Coldth reads ten playback RMS channels from a separate analyzer-only
+CamillaDSP instance on port 1235. If that instance is absent, the UI says
+“standby” and the working audio path is unchanged. No synthetic meter data is
+shown.

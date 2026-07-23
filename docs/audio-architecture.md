@@ -33,6 +33,31 @@ sends `SetConfigJson` when a setting changes. A copy of the generated
 configuration is written atomically so CamillaDSP can start with the last saved
 shape after a reboot.
 
+## Metering and optional analyzer
+
+Coldth reads the main CamillaDSP instance's playback peak and RMS values for
+the two stereo meters. This is control-plane telemetry only; it does not add a
+stage to the audio pipeline.
+
+The ten frequency-band lamps have a separate, optional contract:
+
+```text
+mirrored program audio → analyzer-only CamillaDSP (:1235)
+                       → ten band-pass channels
+                       → playback RMS telemetry → Coldth
+```
+
+The analyzer is kept outside the playback instance so an analyzer crash,
+configuration error, or excess CPU load cannot interrupt listening. Coldth
+expects exactly ten values in EQ order (31 Hz through 16 kHz) from
+`GetPlaybackSignalRms`. If the second instance is missing, the web interface
+shows the analyzer as standing by and does not invent movement.
+
+The Pi deployment does not enable this second instance yet. Its audio mirror
+must first be tested against the Pi's real ALSA topology; sharing the current
+loopback capture naively could disturb CamillaDSP's rate adjustment. Stereo
+meters work without it.
+
 ## Initial audio choices
 
 - 44.1 kHz, stereo, 16-bit capture from Shairport Sync (`S16LE`).
@@ -55,3 +80,5 @@ shape after a reboot.
 4. Startup ordering when no AirPlay stream is active.
 5. Whether the headphone jack's noise floor is acceptable for the intended
    speakers; a USB or I2S DAC can replace only the final ALSA device later.
+6. The safest analyzer audio mirror on the target Pi, without sharing or
+   blocking the main capture device.

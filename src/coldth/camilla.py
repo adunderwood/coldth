@@ -140,3 +140,35 @@ class CamillaClient:
             "error": self._last_error,
             "apply_error": self._last_apply_error,
         }
+
+    def levels(self) -> dict[str, Any]:
+        response = self._command("GetSignalLevels")
+        result = response.get("GetSignalLevels", {})
+        if result.get("result") != "Ok":
+            raise RuntimeError(f"Unable to read signal levels: {result.get('result')}")
+        value = result.get("value")
+        if not isinstance(value, dict):
+            raise RuntimeError("CamillaDSP returned invalid signal levels")
+        return value
+
+
+class SpectrumClient:
+    """Read an optional analyzer-only CamillaDSP instance."""
+
+    def __init__(self, url: str, timeout: float = 0.35):
+        self._client = CamillaClient(
+            url=url,
+            config_path=Path("/dev/null"),
+            timeout=timeout,
+        )
+
+    def levels(self) -> list[float] | None:
+        try:
+            response = self._client._command("GetPlaybackSignalRms")
+            result = response.get("GetPlaybackSignalRms", {})
+            values = result.get("value") if result.get("result") == "Ok" else None
+            if not isinstance(values, list) or len(values) != len(BANDS):
+                return None
+            return [float(value) for value in values]
+        except Exception:
+            return None

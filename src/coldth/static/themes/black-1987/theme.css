@@ -1,0 +1,66 @@
+:root {
+  --background: #070909;
+  --panel: #0b0d0d;
+  --panel-high: #111515;
+  --line: #292d2b;
+  --text: #d9d3c2;
+  --muted: #988f7b;
+  --accent: #56f29b;
+  --accent-dark: #071a11;
+  --meter-warm: #f1a94a;
+}
+
+body {
+  background:
+    linear-gradient(115deg, #ffffff08 0, transparent 18%),
+    repeating-linear-gradient(
+      90deg,
+      #ffffff03 0,
+      #ffffff03 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    var(--background);
+}
+
+.eq-panel,
+.preset-panel,
+.meters-panel {
+  border-color: #3c3b34;
+  background:
+    linear-gradient(180deg, #121414 0, #090b0b 100%);
+  box-shadow:
+    inset 0 1px #ffffff0a,
+    0 28px 90px #000b;
+}
+
+.meter-display {
+  border-color: #202922;
+  background:
+    radial-gradient(circle at 50% 0, #143422 0, transparent 56%),
+    #030706;
+  box-shadow:
+    inset 0 0 34px #000,
+    0 0 0 1px #000;
+}
+
+.eyebrow {
+  color: #b58b50;
+}
+
+.slider-wrap,
+.meter-track {
+  background-color: #060a08;
+}
+
+.band output,
+.meter-row output {
+  color: #d7a55b;
+}
+
+.primary-button {
+  border-color: #37704f;
+  background: #173f29;
+  color: #89ffb9;
+  box-shadow: inset 0 0 12px #4aff9422;
+}

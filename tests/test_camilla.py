@@ -1,6 +1,6 @@
 import json
 
-from coldth.camilla import AudioSettings, CamillaClient, build_config
+from coldth.camilla import AudioSettings, CamillaClient, SpectrumClient, build_config
 from coldth.model import flat_bands
 
 
@@ -34,3 +34,28 @@ def test_offline_engine_still_writes_reboot_config(tmp_path):
     assert json.loads(path.read_text())["title"] == "Coldth"
     assert client.status()["online"] is False
     assert client.status()["apply_error"]
+
+
+def test_signal_levels_are_unwrapped(tmp_path):
+    client = CamillaClient("unused", tmp_path / "config.json")
+    client._command = lambda _: {
+        "GetSignalLevels": {
+            "result": "Ok",
+            "value": {"playback_rms": [-18.0, -17.5]},
+        }
+    }
+
+    assert client.levels()["playback_rms"] == [-18.0, -17.5]
+
+
+def test_spectrum_requires_exactly_ten_channels():
+    spectrum = SpectrumClient("unused")
+    spectrum._client._command = lambda _: {
+        "GetPlaybackSignalRms": {"result": "Ok", "value": [-24.0] * 10}
+    }
+    assert spectrum.levels() == [-24.0] * 10
+
+    spectrum._client._command = lambda _: {
+        "GetPlaybackSignalRms": {"result": "Ok", "value": [-24.0] * 9}
+    }
+    assert spectrum.levels() is None
