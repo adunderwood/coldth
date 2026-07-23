@@ -63,6 +63,16 @@ For installation, start with the complete
 [optional ten-band analyzer](docs/analyzer.md) for the experimental ALSA
 fan-out setup.
 
+On a newly imaged Pi, the preferred installation is:
+
+```sh
+./scripts/install-pi.sh
+```
+
+Add `--with-analyzer` to enable the experimental ten-band FFT from the start.
+The installer is safe to re-run, backs up displaced system configuration, and
+finishes with a service health check. See `./scripts/install-pi.sh --help`.
+
 ## Faceplates and meters
 
 Coldth includes two faceplates: **Original Yellow** and **Black 1987**. The

@@ -1,4 +1,4 @@
-# Experimental: duplicate Shairport's two channels into two snd-aloop
+# Managed by Coldth. Experimental: duplicate Shairport's two channels into two snd-aloop
 # substreams. Install as /etc/asound.conf only after reading docs/analyzer.md.
 pcm.coldth_fanout_raw {
     type multi

@@ -16,6 +16,28 @@ AirPlay → Shairport Sync → ALSA Loopback → CamillaDSP :1234
 The optional ten-band analyzer is described in
 [analyzer.md](analyzer.md). Get the base path working first.
 
+## Recommended: automated installation
+
+From a fresh clone, run:
+
+```sh
+./scripts/install-pi.sh
+```
+
+For the exact setup including the experimental ten-band display:
+
+```sh
+./scripts/install-pi.sh --with-analyzer
+```
+
+The installer performs the steps in this guide, derives the service account
+and repository paths, backs up replaced configuration with a
+`.coldth-before` suffix, and runs `scripts/verify-pi.sh`. It can be re-run to
+repair or update the installation.
+
+Use the remaining sections for understanding, manual installation, and
+troubleshooting.
+
 ## 1. Install system packages
 
 ```sh
