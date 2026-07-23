@@ -49,6 +49,25 @@ by `aplay -L`. Test it directly before adding Coldth.
 
 9. Reload systemd and enable Coldth, CamillaDSP, and Shairport Sync.
 
+### Home-directory checkout
+
+The supplied service uses `/opt/coldth` and `/var/lib/coldth`. A checkout in a
+user's home directory also works, but all of these unit settings must agree
+with the actual paths:
+
+```ini
+User=livingroom
+Group=livingroom
+WorkingDirectory=/home/livingroom/coldth
+Environment=COLDTH_DATA_DIR=/home/livingroom/coldth/data
+ExecStart=/home/livingroom/coldth/venv/bin/coldth
+ProtectHome=read-only
+ReadWritePaths=/home/livingroom/coldth
+```
+
+Do not use `ProtectHome=true` with an executable under `/home`; systemd will
+hide the executable from the service and exit with status `203/EXEC`.
+
 ## First audio test
 
 Before testing AirPlay, verify each boundary separately:

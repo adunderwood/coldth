@@ -144,6 +144,7 @@ h2 {
 .slider-wrap {
   grid-column: 1;
   grid-row: 2;
+  position: relative;
   display: grid;
   place-items: center;
   width: 44px;
@@ -161,11 +162,14 @@ h2 {
 }
 
 input[type="range"] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 210px;
   height: 32px;
   margin: 0;
   accent-color: var(--accent);
-  transform: rotate(-90deg);
+  transform: translate(-50%, -50%) rotate(-90deg);
   cursor: grab;
 }
 
@@ -328,7 +332,10 @@ dialog input {
   }
 
   input[type="range"] {
+    position: static;
     width: calc(100% - 18px);
+    top: auto;
+    left: auto;
     transform: none;
   }
 }
