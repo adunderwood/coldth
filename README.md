@@ -53,6 +53,9 @@ Environment variables:
   `ws://127.0.0.1:1235`)
 - `COLDTH_CAPTURE_DEVICE` — CamillaDSP ALSA capture device
 - `COLDTH_PLAYBACK_DEVICE` — CamillaDSP ALSA playback device
+- `COLDTH_CAPTURE_FORMAT` — ALSA capture sample format (default: `S16LE`)
+- `COLDTH_PLAYBACK_FORMAT` — ALSA playback sample format (default: `S16LE`,
+  compatible with the Pi 4 headphone device)
 
 See [docs/audio-architecture.md](docs/audio-architecture.md) for the Pi-specific
 audio path and current assumptions.

@@ -61,7 +61,8 @@ meters work without it.
 ## Initial audio choices
 
 - 44.1 kHz, stereo, 16-bit capture from Shairport Sync (`S16LE`).
-- 32-bit playback into ALSA.
+- 16-bit playback into ALSA by default. The Pi 4 headphone device may reject
+  32-bit samples; the format remains configurable for USB or I2S DACs.
 - 1024-frame processing chunks.
 - CamillaDSP rate adjustment enabled. ALSA Loopback supports capture clock
   tuning, which is preferred over continuously filling or draining a buffer.

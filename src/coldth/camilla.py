@@ -15,6 +15,8 @@ from .model import BANDS, validate_bands
 class AudioSettings:
     capture_device: str = "hw:Loopback,1,0"
     playback_device: str = "hw:Headphones,0"
+    capture_format: str = "S16LE"
+    playback_format: str = "S16LE"
     samplerate: int = 44100
     chunksize: int = 1024
 
@@ -60,13 +62,13 @@ def build_config(
                 "type": "Alsa",
                 "channels": 2,
                 "device": settings.capture_device,
-                "format": "S16LE",
+                "format": settings.capture_format,
             },
             "playback": {
                 "type": "Alsa",
                 "channels": 2,
                 "device": settings.playback_device,
-                "format": "S32LE",
+                "format": settings.playback_format,
             },
         },
         "filters": filters,
@@ -126,11 +128,18 @@ class CamillaClient:
             result = response.get("GetState", {})
             if result.get("result") != "Ok":
                 raise RuntimeError(f"Unable to read CamillaDSP state: {result.get('result')}")
+            state = result.get("value")
+            online = state != "Inactive"
+            state_error = (
+                None
+                if online
+                else "CamillaDSP is inactive; its audio configuration did not start"
+            )
             self._last_error = None
             return {
-                "online": True,
-                "state": result.get("value"),
-                "error": None,
+                "online": online,
+                "state": state,
+                "error": state_error,
                 "apply_error": self._last_apply_error,
             }
         except Exception as error:

@@ -27,6 +27,8 @@ def create_app(
     settings = audio_settings or AudioSettings(
         capture_device=os.getenv("COLDTH_CAPTURE_DEVICE", "hw:Loopback,1,0"),
         playback_device=os.getenv("COLDTH_PLAYBACK_DEVICE", "hw:Headphones,0"),
+        capture_format=os.getenv("COLDTH_CAPTURE_FORMAT", "S16LE"),
+        playback_format=os.getenv("COLDTH_PLAYBACK_FORMAT", "S16LE"),
     )
     engine_url = camilla_url or os.getenv(
         "COLDTH_CAMILLADSP_URL", "ws://127.0.0.1:1234"

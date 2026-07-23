@@ -15,6 +15,8 @@ Environment=COLDTH_HOST=0.0.0.0
 Environment=COLDTH_PORT=8080
 Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
 Environment=COLDTH_PLAYBACK_DEVICE=hw:Headphones,0
+Environment=COLDTH_CAPTURE_FORMAT=S16LE
+Environment=COLDTH_PLAYBACK_FORMAT=S16LE
 ExecStart=/opt/coldth/.venv/bin/coldth
 Restart=on-failure
 RestartSec=2
