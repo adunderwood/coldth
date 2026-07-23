@@ -182,7 +182,6 @@ class CamillaClient:
             raise RuntimeError("CamillaDSP returned invalid signal levels")
         return value
 
-
 class PersistentCamillaClient:
     """Keep a websocket open so CamillaDSP can accumulate meter samples."""
 
@@ -233,24 +232,3 @@ class SignalLevelClient:
         if not isinstance(value, dict):
             raise RuntimeError("CamillaDSP returned invalid signal levels")
         return value
-
-
-class SpectrumClient:
-    """Read an optional analyzer-only CamillaDSP instance."""
-
-    def __init__(self, url: str, timeout: float = 0.35):
-        self._client = PersistentCamillaClient(url, timeout)
-
-    def close(self) -> None:
-        self._client.close()
-
-    def levels(self) -> list[float] | None:
-        try:
-            response = self._client.command("GetPlaybackSignalRms")
-            result = response.get("GetPlaybackSignalRms", {})
-            values = result.get("value") if result.get("result") == "Ok" else None
-            if not isinstance(values, list) or len(values) != len(BANDS):
-                return None
-            return [float(value) for value in values]
-        except Exception:
-            return None

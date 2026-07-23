@@ -39,23 +39,23 @@ Coldth reads the main CamillaDSP instance's playback peak and RMS values for
 the two stereo meters. This is control-plane telemetry only; it does not add a
 stage to the audio pipeline.
 
-The ten frequency-band lamps have a separate, optional contract:
+The ten frequency-band lamps use a separate, optional raw-audio feed:
 
 ```text
-mirrored program audio → analyzer-only CamillaDSP (:1235)
-                       → ten band-pass channels
-                       → playback RMS telemetry → Coldth
+mirrored program audio → Coldth arecord worker
+                       → small real FFT
+                       → ten geometric buckets
 ```
 
-The analyzer is kept outside the playback instance so an analyzer crash,
-configuration error, or excess CPU load cannot interrupt listening. Coldth
-expects exactly ten values in EQ order (31 Hz through 16 kHz) from
-`GetPlaybackSignalRms`. If the second instance is missing, the web interface
-shows the analyzer as standing by and does not invent movement.
+The analyzer is kept outside the playback instance so an analyzer crash or
+excess CPU load cannot interrupt listening. If the second ALSA feed is missing,
+the web interface shows the analyzer as standing by and does not invent
+movement.
 
-The Pi deployment does not enable this second instance yet. Its audio mirror
-must first be tested against the Pi's real ALSA topology; sharing the current
-loopback capture naively could disturb CamillaDSP's rate adjustment. Stereo
+The base Pi deployment does not enable this second instance. The experimental
+setup duplicates Shairport audio into two ALSA Loopback substreams before
+either DSP instance; see [analyzer.md](analyzer.md). This keeps the analyzer
+outside the playback path while its clock stability is validated. Stereo
 meters work without it.
 
 ## Initial audio choices
@@ -74,12 +74,11 @@ meters work without it.
 
 ## Unknowns to verify on hardware
 
-1. The Pi's actual headphone ALSA identifier and accepted sample formats.
-2. Shairport Sync build (AirPlay 1 or AirPlay 2) and whether forcing 44.1 kHz is
+1. Shairport Sync build (AirPlay 1 or AirPlay 2) and whether forcing 44.1 kHz is
    acceptable for that build.
-3. Buffer stability and AirPlay synchronization after the loopback handoff.
-4. Startup ordering when no AirPlay stream is active.
-5. Whether the headphone jack's noise floor is acceptable for the intended
+2. Long-session buffer stability and AirPlay synchronization after the
+   loopback handoff.
+3. Whether the headphone jack's noise floor is acceptable for the intended
    speakers; a USB or I2S DAC can replace only the final ALSA device later.
-6. The safest analyzer audio mirror on the target Pi, without sharing or
-   blocking the main capture device.
+4. Long-session clock behavior of the experimental two-substream analyzer
+   fan-out.

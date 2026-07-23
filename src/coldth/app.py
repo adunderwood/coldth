@@ -11,7 +11,8 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .camilla import AudioSettings, CamillaClient, SignalLevelClient, SpectrumClient
+from .analyzer import LocalSpectrumAnalyzer
+from .camilla import AudioSettings, CamillaClient, SignalLevelClient
 from .model import (
     BANDS,
     MAX_BALANCE,
@@ -50,8 +51,9 @@ def create_app(
     signal_levels = SignalLevelClient(engine_url)
     static_dir = Path(__file__).parent / "static"
     themes = ThemeRegistry(static_dir / "themes")
-    spectrum = SpectrumClient(
-        os.getenv("COLDTH_SPECTRUM_URL", "ws://127.0.0.1:1235")
+    analyzer = LocalSpectrumAnalyzer(
+        os.getenv("COLDTH_ANALYZER_DEVICE"),
+        samplerate=settings.samplerate,
     )
 
     async def reconcile_audio() -> None:
@@ -65,6 +67,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         camilla.apply(store.bands(), store.balance())
+        analyzer.start()
         reconciler = asyncio.create_task(reconcile_audio())
         try:
             yield
@@ -73,7 +76,7 @@ def create_app(
             with suppress(asyncio.CancelledError):
                 await reconciler
             signal_levels.close()
-            spectrum.close()
+            analyzer.stop()
 
     app = FastAPI(
         title="Coldth",
@@ -108,7 +111,7 @@ def create_app(
                     payload["stereo"] = await asyncio.to_thread(signal_levels.levels)
                 except Exception:
                     pass
-                payload["bands"] = await asyncio.to_thread(spectrum.levels)
+                payload["bands"] = analyzer.levels()
                 await socket.send_json(payload)
                 await asyncio.sleep(0.1)
         except (WebSocketDisconnect, RuntimeError):

@@ -7,7 +7,6 @@ from coldth.camilla import (
     CamillaClient,
     PersistentCamillaClient,
     SignalLevelClient,
-    SpectrumClient,
     build_config,
 )
 from coldth.model import flat_bands
@@ -85,19 +84,6 @@ def test_inactive_engine_is_not_reported_online(tmp_path):
     assert status["online"] is False
     assert status["state"] == "Inactive"
     assert "inactive" in status["error"]
-
-
-def test_spectrum_requires_exactly_ten_channels():
-    spectrum = SpectrumClient("unused")
-    spectrum._client.command = lambda _: {
-        "GetPlaybackSignalRms": {"result": "Ok", "value": [-24.0] * 10}
-    }
-    assert spectrum.levels() == [-24.0] * 10
-
-    spectrum._client.command = lambda _: {
-        "GetPlaybackSignalRms": {"result": "Ok", "value": [-24.0] * 9}
-    }
-    assert spectrum.levels() is None
 
 
 def test_meter_client_reuses_websocket(monkeypatch):

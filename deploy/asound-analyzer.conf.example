@@ -1,0 +1,30 @@
+# Experimental: duplicate Shairport's two channels into two snd-aloop
+# substreams. Install as /etc/asound.conf only after reading docs/analyzer.md.
+pcm.coldth_fanout_raw {
+    type multi
+
+    slaves.main.pcm "hw:Loopback,0,0"
+    slaves.main.channels 2
+    slaves.analyzer.pcm "hw:Loopback,0,1"
+    slaves.analyzer.channels 2
+
+    bindings.0.slave main
+    bindings.0.channel 0
+    bindings.1.slave main
+    bindings.1.channel 1
+    bindings.2.slave analyzer
+    bindings.2.channel 0
+    bindings.3.slave analyzer
+    bindings.3.channel 1
+}
+
+pcm.coldth_fanout {
+    type route
+    slave.pcm "coldth_fanout_raw"
+    slave.channels 4
+
+    ttable.0.0 1
+    ttable.1.1 1
+    ttable.0.2 1
+    ttable.1.3 1
+}

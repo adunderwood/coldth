@@ -5,16 +5,17 @@ Before=coldth.service
 
 [Service]
 Type=simple
-User=coldth
-Group=coldth
+User=livingroom
+Group=livingroom
 SupplementaryGroups=audio
-ExecStart=/usr/local/bin/camilladsp --address 127.0.0.1 --port 1234 /var/lib/coldth/camilladsp.json
-Restart=on-failure
+WorkingDirectory=/home/livingroom
+ExecStart=/usr/local/bin/camilladsp -s /home/livingroom/camilladsp/statefile.yml -w -g0 -o /home/livingroom/camilladsp/camilladsp.log -p 1234
+Restart=always
 RestartSec=2
 NoNewPrivileges=true
 ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/lib/coldth
+ProtectHome=read-only
+ReadWritePaths=/home/livingroom/camilladsp
 
 [Install]
 WantedBy=multi-user.target

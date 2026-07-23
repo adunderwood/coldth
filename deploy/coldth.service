@@ -5,27 +5,27 @@ After=network-online.target camilladsp.service
 
 [Service]
 Type=simple
-User=coldth
-Group=coldth
+User=livingroom
+Group=livingroom
 SupplementaryGroups=audio
-WorkingDirectory=/opt/coldth
-Environment=COLDTH_DATA_DIR=/var/lib/coldth
+WorkingDirectory=/home/livingroom/coldth
+Environment=COLDTH_DATA_DIR=/home/livingroom/coldth/data
 Environment=COLDTH_HOST=0.0.0.0
 Environment=COLDTH_PORT=8080
+Environment=COLDTH_CAMILLADSP_URL=ws://127.0.0.1:1234
+Environment=COLDTH_ANALYZER_DEVICE=hw:Loopback,1,1
 Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
 Environment=COLDTH_PLAYBACK_DEVICE=hw:Headphones,0
 Environment=COLDTH_CAPTURE_FORMAT=S16LE
 Environment=COLDTH_PLAYBACK_FORMAT=S16LE
-ExecStart=/opt/coldth/.venv/bin/coldth
+ExecStart=/home/livingroom/coldth/venv/bin/coldth
 Restart=on-failure
 RestartSec=2
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-# Keep home directories read-only so this unit also works when a user chooses
-# a home-directory checkout instead of /opt/coldth.
 ProtectHome=read-only
-ReadWritePaths=/var/lib/coldth
+ReadWritePaths=/home/livingroom/coldth
 
 [Install]
 WantedBy=multi-user.target
