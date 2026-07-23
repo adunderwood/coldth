@@ -12,7 +12,16 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .camilla import AudioSettings, CamillaClient, SignalLevelClient, SpectrumClient
-from .model import BANDS, MAX_GAIN, MIN_GAIN, GAIN_STEP, ValidationError, flat_bands
+from .model import (
+    BANDS,
+    MAX_BALANCE,
+    MAX_GAIN,
+    MIN_BALANCE,
+    MIN_GAIN,
+    GAIN_STEP,
+    ValidationError,
+    flat_bands,
+)
 from .store import StateStore
 from .themes import ThemeRegistry
 
@@ -51,11 +60,11 @@ def create_app(
             await asyncio.sleep(5)
             status = await asyncio.to_thread(camilla.status)
             if status.get("state") == "Inactive":
-                await asyncio.to_thread(camilla.apply, store.bands())
+                await asyncio.to_thread(camilla.apply, store.bands(), store.balance())
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        camilla.apply(store.bands())
+        camilla.apply(store.bands(), store.balance())
         reconciler = asyncio.create_task(reconcile_audio())
         try:
             yield
@@ -78,8 +87,10 @@ def create_app(
     def get_state() -> dict[str, Any]:
         return {
             "bands": store.bands(),
+            "balance": store.balance(),
             "frequencies": list(BANDS),
             "range": {"min": MIN_GAIN, "max": MAX_GAIN, "step": GAIN_STEP},
+            "balance_range": {"min": MIN_BALANCE, "max": MAX_BALANCE, "step": 1},
             "engine": camilla.status(),
         }
 
@@ -109,13 +120,22 @@ def create_app(
             bands = store.set_bands(payload.get("bands"))
         except ValidationError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
-        applied = camilla.apply(bands)
+        applied = camilla.apply(bands, store.balance())
         return {"bands": bands, "engine": camilla.status(), "applied": applied}
+
+    @app.put("/api/balance")
+    def set_balance(payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            balance = store.set_balance(payload.get("balance"))
+        except ValidationError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        applied = camilla.apply(store.bands(), balance)
+        return {"balance": balance, "engine": camilla.status(), "applied": applied}
 
     @app.post("/api/reset")
     def reset() -> dict[str, Any]:
         bands = store.set_bands(flat_bands())
-        applied = camilla.apply(bands)
+        applied = camilla.apply(bands, store.balance())
         return {"bands": bands, "engine": camilla.status(), "applied": applied}
 
     @app.get("/api/presets")
@@ -150,7 +170,7 @@ def create_app(
         except KeyError as error:
             raise HTTPException(status_code=404, detail="Preset not found") from error
         bands = store.set_bands(preset["bands"])
-        applied = camilla.apply(bands)
+        applied = camilla.apply(bands, store.balance())
         return {"bands": bands, "engine": camilla.status(), "applied": applied}
 
     @app.delete("/api/presets/{name}", status_code=204)

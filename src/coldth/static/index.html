@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#11120f">
     <title>Coldth</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=5">
+    <link rel="stylesheet" href="/assets/styles.css?v=6">
     <link id="theme-stylesheet" rel="stylesheet">
-    <script src="/assets/app.js?v=5" defer></script>
+    <script src="/assets/app.js?v=6" defer></script>
   </head>
   <body>
     <main>
@@ -49,6 +49,15 @@
                 <i class="peak-marker"></i>
               </div>
               <output>−∞</output>
+            </div>
+            <div class="balance-control">
+              <span>L</span>
+              <label>
+                <span>Balance</span>
+                <input id="balance" type="range" min="-100" max="100" step="1" value="0">
+              </label>
+              <span>R</span>
+              <output id="balance-value">Center</output>
             </div>
           </div>
           <div id="analyzer-status" class="analyzer-status">

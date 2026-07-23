@@ -7,7 +7,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from .model import Preset, ValidationError, flat_bands, validate_bands
+from .model import Preset, ValidationError, flat_bands, validate_balance, validate_bands
 
 
 class StateStore:
@@ -20,18 +20,19 @@ class StateStore:
 
     def _load(self) -> dict[str, Any]:
         if not self.path.exists():
-            state = {"bands": flat_bands(), "presets": []}
+            state = {"bands": flat_bands(), "balance": 0, "presets": []}
             self._write(state)
             return state
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             bands = validate_bands(raw.get("bands"))
+            balance = validate_balance(raw.get("balance", 0))
             presets = [
                 Preset.from_mapping(item).as_dict() for item in raw.get("presets", [])
             ]
         except (OSError, json.JSONDecodeError, ValidationError, TypeError) as error:
             raise RuntimeError(f"Invalid Coldth state file {self.path}: {error}") from error
-        return {"bands": bands, "presets": presets}
+        return {"bands": bands, "balance": balance, "presets": presets}
 
     def _write(self, state: dict[str, Any]) -> None:
         payload = json.dumps(state, indent=2, sort_keys=True) + "\n"
@@ -58,6 +59,17 @@ class StateStore:
             self._state["bands"] = clean
             self._write(self._state)
             return clean.copy()
+
+    def balance(self) -> int:
+        with self._lock:
+            return self._state["balance"]
+
+    def set_balance(self, balance: Any) -> int:
+        clean = validate_balance(balance)
+        with self._lock:
+            self._state["balance"] = clean
+            self._write(self._state)
+            return clean
 
     def presets(self) -> list[dict[str, Any]]:
         with self._lock:

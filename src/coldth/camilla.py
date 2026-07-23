@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import Any
 
 import websocket
 
-from .model import BANDS, validate_bands
+from .model import BANDS, validate_balance, validate_bands
 
 
 @dataclass(frozen=True)
@@ -22,9 +23,12 @@ class AudioSettings:
 
 
 def build_config(
-    bands: dict[str, float], settings: AudioSettings = AudioSettings()
+    bands: dict[str, float],
+    settings: AudioSettings = AudioSettings(),
+    balance: int = 0,
 ) -> dict[str, Any]:
     bands = validate_bands(bands)
+    balance = validate_balance(balance)
     # Graphic EQ boosts can exceed digital full scale. This conservative,
     # invisible pre-gain preserves headroom without adding another UI control.
     headroom = -max(0.0, max(bands.values()))
@@ -47,6 +51,20 @@ def build_config(
             },
         }
         filter_names.append(name)
+
+    def attenuation(position: float) -> float:
+        return round(20 * math.log10(max(1.0 - position, 0.00001)), 4)
+
+    left_gain = attenuation(balance / 100) if balance > 0 else 0.0
+    right_gain = attenuation(-balance / 100) if balance < 0 else 0.0
+    filters["coldth_balance_left"] = {
+        "type": "Gain",
+        "parameters": {"gain": left_gain, "scale": "dB"},
+    }
+    filters["coldth_balance_right"] = {
+        "type": "Gain",
+        "parameters": {"gain": right_gain, "scale": "dB"},
+    }
 
     return {
         "title": "Coldth",
@@ -72,7 +90,11 @@ def build_config(
             },
         },
         "filters": filters,
-        "pipeline": [{"type": "Filter", "channels": [0, 1], "names": filter_names}],
+        "pipeline": [
+            {"type": "Filter", "channels": [0, 1], "names": filter_names},
+            {"type": "Filter", "channels": [0], "names": ["coldth_balance_left"]},
+            {"type": "Filter", "channels": [1], "names": ["coldth_balance_right"]},
+        ],
     }
 
 
@@ -101,8 +123,8 @@ class CamillaClient:
             finally:
                 connection.close()
 
-    def apply(self, bands: dict[str, float]) -> bool:
-        config = build_config(bands, self.settings)
+    def apply(self, bands: dict[str, float], balance: int = 0) -> bool:
+        config = build_config(bands, self.settings, balance)
         encoded = json.dumps(config, indent=2) + "\n"
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.config_path.with_suffix(".tmp")

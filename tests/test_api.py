@@ -37,6 +37,17 @@ def test_invalid_eq_is_rejected(tmp_path):
         assert response.status_code == 422
 
 
+def test_balance_round_trip(tmp_path):
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        response = client.put("/api/balance", json={"balance": -35})
+
+        assert response.status_code == 200
+        assert response.json()["balance"] == -35
+        assert client.get("/api/state").json()["balance"] == -35
+
+
 def test_two_builtin_themes_are_available(tmp_path):
     with TestClient(
         create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")

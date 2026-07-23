@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from coldth.camilla import (
     AudioSettings,
     CamillaClient,
@@ -20,6 +22,18 @@ def test_config_has_stereo_ten_band_pipeline_and_headroom():
     assert config["filters"]["coldth_62"]["parameters"]["gain"] == 4
     assert config["pipeline"][0]["channels"] == [0, 1]
     assert len(config["pipeline"][0]["names"]) == 11
+
+
+def test_balance_attenuates_only_the_opposite_channel():
+    config = build_config(flat_bands(), balance=50)
+
+    left = config["filters"]["coldth_balance_left"]["parameters"]["gain"]
+    right = config["filters"]["coldth_balance_right"]["parameters"]["gain"]
+
+    assert left == pytest.approx(-6.0206)
+    assert right == 0
+    assert config["pipeline"][1]["channels"] == [0]
+    assert config["pipeline"][2]["channels"] == [1]
 
 
 def test_audio_devices_are_configurable():

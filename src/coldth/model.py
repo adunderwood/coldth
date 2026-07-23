@@ -7,6 +7,8 @@ BANDS = (31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
 MIN_GAIN = -12.0
 MAX_GAIN = 12.0
 GAIN_STEP = 0.5
+MIN_BALANCE = -100
+MAX_BALANCE = 100
 
 
 class ValidationError(ValueError):
@@ -54,6 +56,15 @@ def validate_bands(value: Any) -> dict[str, float]:
             )
         result[str(frequency)] = steps * GAIN_STEP
     return result
+
+
+def validate_balance(value: Any) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValidationError("balance must be a number")
+    balance = int(value)
+    if balance != value or not MIN_BALANCE <= balance <= MAX_BALANCE:
+        raise ValidationError("balance must be a whole number between -100 and 100")
+    return balance
 
 
 @dataclass(frozen=True)

@@ -74,3 +74,7 @@ optional: Coldth reads ten playback RMS channels from a separate analyzer-only
 CamillaDSP instance on port 1235. If that instance is absent, the UI says
 “standby” and the working audio path is unchanged. No synthetic meter data is
 shown.
+
+The stereo balance control is stored separately from EQ presets. Center leaves
+both channels untouched; moving toward one side progressively attenuates the
+opposite channel, reaching effective silence at full travel.

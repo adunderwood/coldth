@@ -1,6 +1,6 @@
 import pytest
 
-from coldth.model import ValidationError, flat_bands, validate_bands
+from coldth.model import ValidationError, flat_bands, validate_balance, validate_bands
 
 
 def test_flat_bands_has_exact_graphic_eq_frequencies():
@@ -31,3 +31,14 @@ def test_invalid_gain(gain):
     bands["1000"] = gain
     with pytest.raises(ValidationError):
         validate_bands(bands)
+
+
+@pytest.mark.parametrize("balance", [-100, -25, 0, 37, 100])
+def test_valid_balance(balance):
+    assert validate_balance(balance) == balance
+
+
+@pytest.mark.parametrize("balance", [-101, 0.5, 101, True, "center"])
+def test_invalid_balance(balance):
+    with pytest.raises(ValidationError):
+        validate_balance(balance)

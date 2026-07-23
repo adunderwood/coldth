@@ -7,9 +7,13 @@ const presetName = document.querySelector("#preset-name");
 const themeList = document.querySelector("#theme-list");
 const themeStylesheet = document.querySelector("#theme-stylesheet");
 const analyzerStatus = document.querySelector("#analyzer-status");
+const balanceSlider = document.querySelector("#balance");
+const balanceValue = document.querySelector("#balance-value");
 
 let bands = {};
+let balance = 0;
 let updateTimer;
+let balanceTimer;
 let meterSocket;
 let reconnectTimer;
 const heldPeaks = [-60, -60];
@@ -18,6 +22,10 @@ const labelFrequency = (frequency) =>
   frequency >= 1000 ? `${frequency / 1000}k` : `${frequency}`;
 
 const labelGain = (gain) => `${gain > 0 ? "+" : ""}${gain.toFixed(1)} dB`;
+const labelBalance = (value) => {
+  if (value === 0) return "Center";
+  return `${value < 0 ? "L" : "R"} ${Math.abs(value)}`;
+};
 
 function showMessage(text, error = false) {
   message.textContent = text;
@@ -197,6 +205,35 @@ function scheduleUpdate() {
   }, 120);
 }
 
+function scheduleBalanceUpdate() {
+  clearTimeout(balanceTimer);
+  balanceTimer = setTimeout(async () => {
+    try {
+      const result = await request("/api/balance", {
+        method: "PUT",
+        body: JSON.stringify({ balance }),
+      });
+      setEngineStatus(result.engine);
+      showMessage(result.applied ? "Balance applied" : "Balance saved", !result.applied);
+    } catch (error) {
+      showMessage(error.message, true);
+    }
+  }, 120);
+}
+
+balanceSlider.addEventListener("input", () => {
+  balance = Number(balanceSlider.value);
+  balanceValue.value = labelBalance(balance);
+  scheduleBalanceUpdate();
+});
+
+balanceSlider.addEventListener("dblclick", () => {
+  balance = 0;
+  balanceSlider.value = 0;
+  balanceValue.value = labelBalance(balance);
+  scheduleBalanceUpdate();
+});
+
 async function refreshPresets(selected) {
   const presets = await request("/api/presets");
   presetList.replaceChildren(
@@ -219,6 +256,12 @@ async function initialize() {
       initializeThemes(),
     ]);
     bands = state.bands;
+    balance = state.balance;
+    balanceSlider.min = state.balance_range.min;
+    balanceSlider.max = state.balance_range.max;
+    balanceSlider.step = state.balance_range.step;
+    balanceSlider.value = balance;
+    balanceValue.value = labelBalance(balance);
     renderBands(state.frequencies, state.range);
     setEngineStatus(state.engine);
     await refreshPresets();
