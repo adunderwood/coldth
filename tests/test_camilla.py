@@ -22,6 +22,8 @@ def test_audio_devices_are_configurable():
     )
     assert config["devices"]["capture"]["device"] == "capture"
     assert config["devices"]["playback"]["device"] == "playback"
+    assert config["devices"]["capture"]["format"] == "S16LE"
+    assert config["devices"]["playback"]["format"] == "S32LE"
 
 
 def test_offline_engine_still_writes_reboot_config(tmp_path):
@@ -31,3 +33,4 @@ def test_offline_engine_still_writes_reboot_config(tmp_path):
     assert client.apply(flat_bands()) is False
     assert json.loads(path.read_text())["title"] == "Coldth"
     assert client.status()["online"] is False
+    assert client.status()["apply_error"]

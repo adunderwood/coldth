@@ -93,7 +93,14 @@ function scheduleUpdate() {
         body: JSON.stringify({ bands }),
       });
       setEngineStatus(result.engine);
-      showMessage(result.applied ? "EQ applied" : "Saved; audio engine is offline");
+      showMessage(
+        result.applied
+          ? "EQ applied"
+          : `Saved; audio update failed: ${
+              result.engine.apply_error || result.engine.error || "unknown error"
+            }`,
+        !result.applied,
+      );
     } catch (error) {
       showMessage(error.message, true);
     }

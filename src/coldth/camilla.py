@@ -60,13 +60,13 @@ def build_config(
                 "type": "Alsa",
                 "channels": 2,
                 "device": settings.capture_device,
-                "format": "S16_LE",
+                "format": "S16LE",
             },
             "playback": {
                 "type": "Alsa",
                 "channels": 2,
                 "device": settings.playback_device,
-                "format": "S32_LE",
+                "format": "S32LE",
             },
         },
         "filters": filters,
@@ -88,6 +88,7 @@ class CamillaClient:
         self.timeout = timeout
         self._lock = threading.Lock()
         self._last_error: str | None = "Audio engine has not been contacted yet"
+        self._last_apply_error: str | None = None
 
     def _command(self, command: Any) -> dict[str, Any]:
         with self._lock:
@@ -113,8 +114,10 @@ class CamillaClient:
                 raise RuntimeError(f"CamillaDSP rejected the configuration: {result}")
         except Exception as error:
             self._last_error = str(error)
+            self._last_apply_error = str(error)
             return False
         self._last_error = None
+        self._last_apply_error = None
         return True
 
     def status(self) -> dict[str, Any]:
@@ -128,7 +131,12 @@ class CamillaClient:
                 "online": True,
                 "state": result.get("value"),
                 "error": None,
+                "apply_error": self._last_apply_error,
             }
         except Exception as error:
             self._last_error = str(error)
-        return {"online": self._last_error is None, "error": self._last_error}
+        return {
+            "online": self._last_error is None,
+            "error": self._last_error,
+            "apply_error": self._last_apply_error,
+        }
