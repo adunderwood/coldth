@@ -21,7 +21,9 @@ RestartSec=2
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
+# Keep home directories read-only so this unit also works when a user chooses
+# a home-directory checkout instead of /opt/coldth.
+ProtectHome=read-only
 ReadWritePaths=/var/lib/coldth
 
 [Install]
