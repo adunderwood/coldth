@@ -1,6 +1,13 @@
 import json
 
-from coldth.camilla import AudioSettings, CamillaClient, SpectrumClient, build_config
+from coldth.camilla import (
+    AudioSettings,
+    CamillaClient,
+    PersistentCamillaClient,
+    SignalLevelClient,
+    SpectrumClient,
+    build_config,
+)
 from coldth.model import flat_bands
 
 
@@ -37,8 +44,8 @@ def test_offline_engine_still_writes_reboot_config(tmp_path):
 
 
 def test_signal_levels_are_unwrapped(tmp_path):
-    client = CamillaClient("unused", tmp_path / "config.json")
-    client._command = lambda _: {
+    client = SignalLevelClient("unused")
+    client._client.command = lambda _: {
         "GetSignalLevels": {
             "result": "Ok",
             "value": {"playback_rms": [-18.0, -17.5]},
@@ -50,12 +57,46 @@ def test_signal_levels_are_unwrapped(tmp_path):
 
 def test_spectrum_requires_exactly_ten_channels():
     spectrum = SpectrumClient("unused")
-    spectrum._client._command = lambda _: {
+    spectrum._client.command = lambda _: {
         "GetPlaybackSignalRms": {"result": "Ok", "value": [-24.0] * 10}
     }
     assert spectrum.levels() == [-24.0] * 10
 
-    spectrum._client._command = lambda _: {
+    spectrum._client.command = lambda _: {
         "GetPlaybackSignalRms": {"result": "Ok", "value": [-24.0] * 9}
     }
     assert spectrum.levels() is None
+
+
+def test_meter_client_reuses_websocket(monkeypatch):
+    class FakeConnection:
+        def __init__(self):
+            self.sent = []
+            self.closed = False
+
+        def send(self, value):
+            self.sent.append(value)
+
+        def recv(self):
+            return '{"GetSignalLevels":{"result":"Ok","value":{}}}'
+
+        def close(self):
+            self.closed = True
+
+    connection = FakeConnection()
+    connections = []
+
+    def connect(*_, **__):
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr("coldth.camilla.websocket.create_connection", connect)
+    client = PersistentCamillaClient("ws://unused")
+
+    client.command("GetSignalLevels")
+    client.command("GetSignalLevels")
+    client.close()
+
+    assert connections == [connection]
+    assert len(connection.sent) == 2
+    assert connection.closed is True

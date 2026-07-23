@@ -152,19 +152,70 @@ class CamillaClient:
         return value
 
 
+class PersistentCamillaClient:
+    """Keep a websocket open so CamillaDSP can accumulate meter samples."""
+
+    def __init__(self, url: str, timeout: float = 1.0):
+        self.url = url
+        self.timeout = timeout
+        self._lock = threading.Lock()
+        self._connection: websocket.WebSocket | None = None
+
+    def _close_unlocked(self) -> None:
+        if self._connection is not None:
+            try:
+                self._connection.close()
+            finally:
+                self._connection = None
+
+    def close(self) -> None:
+        with self._lock:
+            self._close_unlocked()
+
+    def command(self, command: Any) -> dict[str, Any]:
+        with self._lock:
+            try:
+                if self._connection is None:
+                    self._connection = websocket.create_connection(
+                        self.url, timeout=self.timeout
+                    )
+                self._connection.send(json.dumps(command))
+                return json.loads(self._connection.recv())
+            except Exception:
+                self._close_unlocked()
+                raise
+
+
+class SignalLevelClient:
+    def __init__(self, url: str, timeout: float = 1.0):
+        self._client = PersistentCamillaClient(url, timeout)
+
+    def close(self) -> None:
+        self._client.close()
+
+    def levels(self) -> dict[str, Any]:
+        response = self._client.command("GetSignalLevels")
+        result = response.get("GetSignalLevels", {})
+        if result.get("result") != "Ok":
+            raise RuntimeError(f"Unable to read signal levels: {result.get('result')}")
+        value = result.get("value")
+        if not isinstance(value, dict):
+            raise RuntimeError("CamillaDSP returned invalid signal levels")
+        return value
+
+
 class SpectrumClient:
     """Read an optional analyzer-only CamillaDSP instance."""
 
     def __init__(self, url: str, timeout: float = 0.35):
-        self._client = CamillaClient(
-            url=url,
-            config_path=Path("/dev/null"),
-            timeout=timeout,
-        )
+        self._client = PersistentCamillaClient(url, timeout)
+
+    def close(self) -> None:
+        self._client.close()
 
     def levels(self) -> list[float] | None:
         try:
-            response = self._client._command("GetPlaybackSignalRms")
+            response = self._client.command("GetPlaybackSignalRms")
             result = response.get("GetPlaybackSignalRms", {})
             values = result.get("value") if result.get("result") == "Ok" else None
             if not isinstance(values, list) or len(values) != len(BANDS):

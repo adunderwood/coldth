@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .camilla import AudioSettings, CamillaClient, SpectrumClient
+from .camilla import AudioSettings, CamillaClient, SignalLevelClient, SpectrumClient
 from .model import BANDS, MAX_GAIN, MIN_GAIN, GAIN_STEP, ValidationError, flat_bands
 from .store import StateStore
 from .themes import ThemeRegistry
@@ -28,11 +28,15 @@ def create_app(
         capture_device=os.getenv("COLDTH_CAPTURE_DEVICE", "hw:Loopback,1,0"),
         playback_device=os.getenv("COLDTH_PLAYBACK_DEVICE", "hw:Headphones,0"),
     )
+    engine_url = camilla_url or os.getenv(
+        "COLDTH_CAMILLADSP_URL", "ws://127.0.0.1:1234"
+    )
     camilla = CamillaClient(
-        camilla_url or os.getenv("COLDTH_CAMILLADSP_URL", "ws://127.0.0.1:1234"),
+        engine_url,
         root / "camilladsp.json",
         settings,
     )
+    signal_levels = SignalLevelClient(engine_url)
     static_dir = Path(__file__).parent / "static"
     themes = ThemeRegistry(static_dir / "themes")
     spectrum = SpectrumClient(
@@ -42,7 +46,11 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         camilla.apply(store.bands())
-        yield
+        try:
+            yield
+        finally:
+            signal_levels.close()
+            spectrum.close()
 
     app = FastAPI(
         title="Coldth",
@@ -72,7 +80,7 @@ def create_app(
             while True:
                 payload: dict[str, Any] = {"stereo": None, "bands": None}
                 try:
-                    payload["stereo"] = await asyncio.to_thread(camilla.levels)
+                    payload["stereo"] = await asyncio.to_thread(signal_levels.levels)
                 except Exception:
                     pass
                 payload["bands"] = await asyncio.to_thread(spectrum.levels)
