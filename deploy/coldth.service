@@ -1,8 +1,7 @@
 [Unit]
 Description=Coldth web equalizer
-Wants=network-online.target
-After=network-online.target
-Before=camilladsp.service
+Wants=network-online.target camilladsp.service
+After=network-online.target camilladsp.service
 
 [Service]
 Type=simple

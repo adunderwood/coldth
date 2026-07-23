@@ -25,12 +25,17 @@ def test_config_has_stereo_ten_band_pipeline_and_headroom():
 def test_audio_devices_are_configurable():
     config = build_config(
         flat_bands(),
-        AudioSettings(capture_device="capture", playback_device="playback"),
+        AudioSettings(
+            capture_device="capture",
+            playback_device="playback",
+            capture_format="S16LE",
+            playback_format="S24LE",
+        ),
     )
     assert config["devices"]["capture"]["device"] == "capture"
     assert config["devices"]["playback"]["device"] == "playback"
     assert config["devices"]["capture"]["format"] == "S16LE"
-    assert config["devices"]["playback"]["format"] == "S32LE"
+    assert config["devices"]["playback"]["format"] == "S24LE"
 
 
 def test_offline_engine_still_writes_reboot_config(tmp_path):
@@ -53,6 +58,19 @@ def test_signal_levels_are_unwrapped(tmp_path):
     }
 
     assert client.levels()["playback_rms"] == [-18.0, -17.5]
+
+
+def test_inactive_engine_is_not_reported_online(tmp_path):
+    client = CamillaClient("unused", tmp_path / "config.json")
+    client._command = lambda _: {
+        "GetState": {"result": "Ok", "value": "Inactive"}
+    }
+
+    status = client.status()
+
+    assert status["online"] is False
+    assert status["state"] == "Inactive"
+    assert "inactive" in status["error"]
 
 
 def test_spectrum_requires_exactly_ten_channels():

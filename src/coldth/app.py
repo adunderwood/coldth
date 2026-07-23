@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
@@ -45,12 +45,24 @@ def create_app(
         os.getenv("COLDTH_SPECTRUM_URL", "ws://127.0.0.1:1235")
     )
 
+    async def reconcile_audio() -> None:
+        """Restore the saved config after CamillaDSP is restarted."""
+        while True:
+            await asyncio.sleep(5)
+            status = await asyncio.to_thread(camilla.status)
+            if status.get("state") == "Inactive":
+                await asyncio.to_thread(camilla.apply, store.bands())
+
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         camilla.apply(store.bands())
+        reconciler = asyncio.create_task(reconcile_audio())
         try:
             yield
         finally:
+            reconciler.cancel()
+            with suppress(asyncio.CancelledError):
+                await reconciler
             signal_levels.close()
             spectrum.close()
 

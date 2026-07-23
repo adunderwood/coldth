@@ -1,7 +1,7 @@
 [Unit]
 Description=CamillaDSP for Coldth
-After=coldth.service sound.target
-Requires=coldth.service
+After=sound.target
+Before=coldth.service
 
 [Service]
 Type=simple
