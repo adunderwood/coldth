@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#11120f">
+    <title>Coldth</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">Raspberry Pi equalizer</p>
+          <h1>Coldth</h1>
+        </div>
+        <div id="engine-status" class="status" aria-live="polite">
+          <span></span> Connecting
+        </div>
+      </header>
+
+      <section class="eq-panel" aria-labelledby="eq-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Ten-band graphic EQ</p>
+            <h2 id="eq-title">Shape the sound</h2>
+          </div>
+          <button id="reset" class="quiet-button" type="button">Reset</button>
+        </div>
+        <div id="equalizer" class="equalizer" aria-busy="true"></div>
+      </section>
+
+      <section class="preset-panel" aria-labelledby="preset-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Your settings</p>
+            <h2 id="preset-title">Presets</h2>
+          </div>
+          <button id="save-preset" class="primary-button" type="button">
+            Save current
+          </button>
+        </div>
+        <div class="preset-controls">
+          <select id="preset-list" aria-label="Choose preset"></select>
+          <button id="load-preset" type="button">Load</button>
+          <button id="export-preset" type="button">Export</button>
+          <button id="delete-preset" class="danger-button" type="button">
+            Delete
+          </button>
+          <label class="import-button">
+            Import
+            <input id="import-preset" type="file" accept="application/json,.json">
+          </label>
+        </div>
+      </section>
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+    </main>
+
+    <dialog id="save-dialog">
+      <form method="dialog">
+        <p class="eyebrow">New preset</p>
+        <h2>Save this shape</h2>
+        <label>
+          Preset name
+          <input id="preset-name" maxlength="80" autocomplete="off" required>
+        </label>
+        <div class="dialog-actions">
+          <button value="cancel" class="quiet-button">Cancel</button>
+          <button id="confirm-save" value="default" class="primary-button">
+            Save preset
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

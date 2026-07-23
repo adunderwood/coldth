@@ -1,0 +1,11 @@
+// Merge these settings into /etc/shairport-sync.conf.
+general = {
+  name = "Coldth";
+  output_backend = "alsa";
+};
+
+alsa = {
+  output_device = "hw:Loopback,0,0";
+  output_rate = 44100;
+  output_format = "S16";
+};

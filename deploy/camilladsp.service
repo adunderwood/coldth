@@ -1,0 +1,20 @@
+[Unit]
+Description=CamillaDSP for Coldth
+After=coldth.service sound.target
+Requires=coldth.service
+
+[Service]
+Type=simple
+User=coldth
+Group=coldth
+SupplementaryGroups=audio
+ExecStart=/usr/local/bin/camilladsp --address 127.0.0.1 --port 1234 /var/lib/coldth/camilladsp.json
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/coldth
+
+[Install]
+WantedBy=multi-user.target
