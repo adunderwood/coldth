@@ -9,3 +9,9 @@ alsa = {
   output_rate = 44100;
   output_format = "S16";
 };
+
+metadata = {
+  enabled = "yes";
+  include_cover_art = "no";
+  pipe_name = "/tmp/shairport-sync-metadata";
+};

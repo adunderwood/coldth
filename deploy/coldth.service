@@ -13,6 +13,8 @@ Environment=COLDTH_DATA_DIR=/home/livingroom/coldth/data
 Environment=COLDTH_HOST=0.0.0.0
 Environment=COLDTH_PORT=8080
 Environment=COLDTH_CAMILLADSP_URL=ws://127.0.0.1:1234
+Environment=COLDTH_SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata
+Environment=COLDTH_SHAIRPORT_ARTWORK_AVAILABLE=false
 Environment=COLDTH_ANALYZER_DEVICE=hw:Loopback,1,1
 Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
 Environment=COLDTH_PLAYBACK_DEVICE=hw:Headphones,0
@@ -22,7 +24,8 @@ ExecStart=/home/livingroom/coldth/venv/bin/coldth
 Restart=on-failure
 RestartSec=2
 NoNewPrivileges=true
-PrivateTmp=true
+# Coldth and Shairport Sync must see the same metadata FIFO in /tmp.
+PrivateTmp=false
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/home/livingroom/coldth

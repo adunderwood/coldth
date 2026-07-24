@@ -121,10 +121,26 @@ alsa = {
     output_rate = 44100;
     output_format = "S16";
 };
+
+metadata = {
+    enabled = "yes";
+    include_cover_art = "no";
+    pipe_name = "/tmp/shairport-sync-metadata";
+};
 ```
 
 Make sure another active `output_device` does not still point directly to
-`hw:Headphones`. Restart Shairport and reconnect the AirPlay sender:
+`hw:Headphones`. Confirm that the installed build supports metadata:
+
+```sh
+shairport-sync -V
+```
+
+Its version string must include `metadata`. Track information travels through
+the named pipe independently of audio. Artwork solicitation is deliberately
+off by default.
+
+Restart Shairport and reconnect the AirPlay sender:
 
 ```sh
 sudo systemctl restart shairport-sync
@@ -209,6 +225,8 @@ Environment=COLDTH_DATA_DIR=/home/livingroom/coldth/data
 Environment=COLDTH_HOST=0.0.0.0
 Environment=COLDTH_PORT=8080
 Environment=COLDTH_CAMILLADSP_URL=ws://127.0.0.1:1234
+Environment=COLDTH_SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata
+Environment=COLDTH_SHAIRPORT_ARTWORK_AVAILABLE=false
 # Optional; omit until docs/analyzer.md has been completed:
 Environment=COLDTH_ANALYZER_DEVICE=hw:Loopback,1,1
 Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
@@ -219,7 +237,8 @@ ExecStart=/home/livingroom/coldth/venv/bin/coldth
 Restart=on-failure
 RestartSec=2
 NoNewPrivileges=true
-PrivateTmp=true
+# Coldth and Shairport Sync must see the same metadata FIFO in /tmp.
+PrivateTmp=false
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/home/livingroom/coldth
@@ -243,6 +262,42 @@ sudo systemctl restart coldth
 
 Coldth also watches for an inactive CamillaDSP and reapplies the saved
 configuration after an engine restart.
+
+`PrivateTmp=false` is intentional. Shairport and Coldth are different systemd
+services and must see the same `/tmp/shairport-sync-metadata` FIFO. With
+`PrivateTmp=true`, Coldth sees a private path and track metadata never arrives.
+
+Open `/settings` to control whether Coldth accepts track information and album
+artwork. Track information defaults on. Artwork defaults off and is retained
+only in memory.
+
+### Opt in to album artwork
+
+Artwork requires explicit system-level and user-level consent. Change
+Shairport's metadata block to:
+
+```conf
+include_cover_art = "yes";
+```
+
+Then change the Coldth service environment to:
+
+```ini
+Environment=COLDTH_SHAIRPORT_ARTWORK_AVAILABLE=true
+```
+
+Reload and restart both services:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl restart coldth shairport-sync
+```
+
+Finally enable **Use album artwork** at `/settings`. Shairport's
+`include_cover_art` option controls whether it solicits artwork from the
+sender; the browser setting controls whether Coldth retains and serves it.
+To stop artwork transfer entirely, set `include_cover_art` back to `"no"` and
+restart Shairport.
 
 ## 7. Verify the complete path
 

@@ -9,6 +9,11 @@ const themeStylesheet = document.querySelector("#theme-stylesheet");
 const analyzerStatus = document.querySelector("#analyzer-status");
 const balanceSlider = document.querySelector("#balance");
 const balanceValue = document.querySelector("#balance-value");
+const nowPlaying = document.querySelector("#now-playing");
+const trackArtwork = document.querySelector("#track-artwork");
+const trackState = document.querySelector("#track-state");
+const trackTitle = document.querySelector("#track-title");
+const trackByline = document.querySelector("#track-byline");
 
 let bands = {};
 let balance = 0;
@@ -16,6 +21,8 @@ let updateTimer;
 let balanceTimer;
 let meterSocket;
 let reconnectTimer;
+let currentMetadata = {};
+let currentTransport = {};
 const heldPeaks = [-60, -60];
 
 const labelFrequency = (frequency) =>
@@ -143,6 +150,43 @@ function updateStereoMeters(levels) {
   });
 }
 
+function updateNormalizedMeters(frame) {
+  document.querySelectorAll(".meter-row").forEach((row, channel) => {
+    const rmsValue = Number(
+      (channel === 0 ? frame?.leftRms : frame?.rightRms) ?? -60,
+    );
+    const peakValue = Number(
+      (channel === 0 ? frame?.leftPeak : frame?.rightPeak) ?? rmsValue,
+    );
+    heldPeaks[channel] = Math.max(peakValue, heldPeaks[channel] - 0.7);
+    row.querySelector(".meter-fill").style.width = `${levelPercent(rmsValue)}%`;
+    row.querySelector(".peak-marker").style.left =
+      `${levelPercent(heldPeaks[channel])}%`;
+    row.querySelector("output").value = formatLevel(peakValue);
+  });
+}
+
+function updateNowPlaying() {
+  const available = Boolean(
+    currentMetadata.title || currentMetadata.artist || currentMetadata.album,
+  );
+  nowPlaying.hidden = !available;
+  if (!available) return;
+  trackTitle.textContent = currentMetadata.title || "Unknown track";
+  trackByline.textContent = [currentMetadata.artist, currentMetadata.album]
+    .filter(Boolean)
+    .join(" · ");
+  trackState.textContent =
+    currentTransport.state === "playing" ? "Now playing" : "AirPlay";
+  if (currentMetadata.artwork) {
+    trackArtwork.src = `${currentMetadata.artwork}?t=${Date.now()}`;
+    trackArtwork.hidden = false;
+  } else {
+    trackArtwork.removeAttribute("src");
+    trackArtwork.hidden = true;
+  }
+}
+
 function updateBandMeters(levels) {
   const live = Array.isArray(levels) && levels.length === 10;
   equalizer.classList.toggle("analyzer-live", live);
@@ -158,11 +202,23 @@ function updateBandMeters(levels) {
 function connectMeters() {
   clearTimeout(reconnectTimer);
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  meterSocket = new WebSocket(`${protocol}//${location.host}/api/meters`);
+  meterSocket = new WebSocket(`${protocol}//${location.host}/api/v1/events`);
   meterSocket.addEventListener("message", (event) => {
     const payload = JSON.parse(event.data);
-    updateStereoMeters(payload.stereo);
-    updateBandMeters(payload.bands);
+    if (payload.type === "state.snapshot") {
+      currentMetadata = payload.data.metadata || {};
+      currentTransport = payload.data.transport || {};
+      updateNowPlaying();
+    } else if (payload.type === "meter.frame") {
+      updateNormalizedMeters(payload.data);
+      updateBandMeters(payload.data.spectrum);
+    } else if (payload.type === "metadata.changed") {
+      currentMetadata = payload.data;
+      updateNowPlaying();
+    } else if (payload.type === "transport.changed") {
+      currentTransport = payload.data;
+      updateNowPlaying();
+    }
   });
   meterSocket.addEventListener("close", () => {
     updateStereoMeters(null);

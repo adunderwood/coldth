@@ -171,6 +171,12 @@ alsa = {
     output_rate = 44100;
     output_format = "S16";
 };
+
+metadata = {
+    enabled = "yes";
+    include_cover_art = "no";
+    pipe_name = "/tmp/shairport-sync-metadata";
+};
 EOF
 
 sudo tee /etc/systemd/system/camilladsp.service >/dev/null <<EOF
@@ -215,6 +221,8 @@ Environment=COLDTH_DATA_DIR=$DATA_DIR
 Environment=COLDTH_HOST=0.0.0.0
 Environment=COLDTH_PORT=8080
 Environment=COLDTH_CAMILLADSP_URL=ws://127.0.0.1:1234
+Environment=COLDTH_SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata
+Environment=COLDTH_SHAIRPORT_ARTWORK_AVAILABLE=false
 Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
 Environment=COLDTH_PLAYBACK_DEVICE=$PLAYBACK_DEVICE
 Environment=COLDTH_CAPTURE_FORMAT=S16LE
@@ -224,7 +232,8 @@ ExecStart=$VENV_DIR/bin/coldth
 Restart=on-failure
 RestartSec=2
 NoNewPrivileges=true
-PrivateTmp=true
+# Coldth and Shairport Sync must see the same metadata FIFO in /tmp.
+PrivateTmp=false
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=$REPO_DIR

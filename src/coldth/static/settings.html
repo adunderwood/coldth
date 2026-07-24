@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#11120f">
+    <title>Settings · Coldth</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=7">
+    <link id="theme-stylesheet" rel="stylesheet">
+    <script src="/assets/settings.js?v=1" defer></script>
+  </head>
+  <body>
+    <main class="settings-page">
+      <header>
+        <div>
+          <p class="eyebrow">Coldth</p>
+          <h1>Settings</h1>
+        </div>
+        <a class="quiet-button settings-link" href="/">Back to receiver</a>
+      </header>
+
+      <section class="settings-panel" aria-labelledby="privacy-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">AirPlay privacy</p>
+            <h2 id="privacy-title">Now playing</h2>
+          </div>
+          <span id="metadata-source" class="source-status">Checking source…</span>
+        </div>
+
+        <label class="setting-row">
+          <span>
+            <strong>Receive track information</strong>
+            <small>Show artist, album, title, and playback state supplied by the AirPlay sender.</small>
+          </span>
+          <input id="metadata-enabled" type="checkbox">
+        </label>
+
+        <label class="setting-row">
+          <span>
+            <strong>Use album artwork</strong>
+            <small id="artwork-description">Artwork is held in memory while playing and is never written to disk.</small>
+          </span>
+          <input id="artwork-enabled" type="checkbox">
+        </label>
+
+        <p class="settings-note">
+          Coldth does not contact a music database or artwork service. It only
+          accepts information included in the local AirPlay stream. Shairport
+          must separately be configured to request artwork; the Coldth
+          installer leaves that off by default.
+        </p>
+      </section>
+      <p id="settings-message" class="message" role="status" aria-live="polite"></p>
+    </main>
+  </body>
+</html>

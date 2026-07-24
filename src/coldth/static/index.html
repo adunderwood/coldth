@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#11120f">
     <title>Coldth</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=6">
+    <link rel="stylesheet" href="/assets/styles.css?v=7">
     <link id="theme-stylesheet" rel="stylesheet">
-    <script src="/assets/app.js?v=6" defer></script>
+    <script src="/assets/app.js?v=7" defer></script>
   </head>
   <body>
     <main>
@@ -17,6 +17,7 @@
           <h1>Coldth</h1>
         </div>
         <div class="header-controls">
+          <a class="quiet-button settings-link" href="/settings">Settings</a>
           <label class="theme-picker">
             <span>Faceplate</span>
             <select id="theme-list" aria-label="Choose faceplate theme"></select>
@@ -62,6 +63,14 @@
           </div>
           <div id="analyzer-status" class="analyzer-status">
             10-band analyzer standby
+          </div>
+          <div id="now-playing" class="now-playing" hidden>
+            <img id="track-artwork" alt="">
+            <div>
+              <span id="track-state">AirPlay</span>
+              <strong id="track-title">Unknown track</strong>
+              <small id="track-byline"></small>
+            </div>
           </div>
         </div>
       </section>

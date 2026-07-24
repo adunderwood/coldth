@@ -49,6 +49,10 @@ Environment variables:
 - `COLDTH_HOST` — web bind address (default: `0.0.0.0`)
 - `COLDTH_PORT` — web port (default: `8080`)
 - `COLDTH_CAMILLADSP_URL` — engine socket (default: `ws://127.0.0.1:1234`)
+- `COLDTH_SHAIRPORT_METADATA_PIPE` — optional Shairport Sync metadata FIFO,
+  normally `/tmp/shairport-sync-metadata`
+- `COLDTH_SHAIRPORT_ARTWORK_AVAILABLE` — set to `true` only when Shairport is
+  configured to solicit cover art (default: false)
 - `COLDTH_ANALYZER_DEVICE` — optional ALSA capture device for the local
   ten-band FFT, such as `hw:Loopback,1,1` (disabled when unset)
 - `COLDTH_CAPTURE_DEVICE` — CamillaDSP ALSA capture device
@@ -62,6 +66,12 @@ For installation, start with the complete
 [audio architecture](docs/audio-architecture.md) for design decisions and the
 [optional ten-band analyzer](docs/analyzer.md) for the experimental ALSA
 fan-out setup.
+
+The versioned public contract is designed in
+[Coldth API v1](docs/api-v1.md). It treats the bundled web receiver as one
+client of canonical receiver state and deliberately keeps DSP topology private.
+The declarative `.coldth-theme` package, layout, inheritance, and control
+motion model are defined in [theme packages](docs/theme-packages.md).
 
 On a newly imaged Pi, the preferred installation is:
 
@@ -90,3 +100,8 @@ unchanged. No synthetic meter data is shown.
 The stereo balance control is stored separately from EQ presets. Center leaves
 both channels untouched; moving toward one side progressively attenuates the
 opposite channel, reaching effective silence at full travel.
+
+When the Shairport metadata adapter is configured, the receiver shows the
+artist, album, title, and playback state supplied by the AirPlay sender.
+Privacy controls live at `/settings`. Album artwork is opt-in at both the
+Shairport service and Coldth UI levels and is kept only in memory.

@@ -11,6 +11,12 @@ for command in camilladsp arecord shairport-sync; do
     bad "$command is not installed"
 done
 
+if shairport-sync -V 2>&1 | grep -qi metadata; then
+  ok "Shairport Sync includes metadata support"
+else
+  bad "Shairport Sync was built without metadata support"
+fi
+
 for service in camilladsp coldth shairport-sync; do
   systemctl is-active --quiet "$service" &&
     ok "$service is running" ||
@@ -36,6 +42,13 @@ if curl -fsS http://127.0.0.1:8080/api/state >/dev/null 2>&1; then
   ok "Coldth API is responding on 8080"
 else
   bad "Coldth API is not responding on 8080"
+fi
+
+if curl -fsS http://127.0.0.1:8080/api/v1/settings 2>/dev/null |
+   grep -q '"configured":true'; then
+  ok "Coldth metadata adapter is configured"
+else
+  bad "Coldth metadata adapter is not configured"
 fi
 
 if [[ $failures -eq 0 ]]; then
