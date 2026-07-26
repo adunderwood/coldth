@@ -25,6 +25,9 @@ Environment:
   CAMILLA_VERSION  CamillaDSP version to install when missing (default: 3.0.1).
   COLDTH_PLAYBACK_DEVICE
                    ALSA output device (default: hw:Headphones,0).
+  COLDTH_SAMPLE_RATE
+                   Audio processing rate (default: 44100).
+  COLDTH_CHUNKSIZE CamillaDSP chunk size (default: 1024).
 EOF
 }
 
@@ -66,9 +69,19 @@ VENV_DIR="$REPO_DIR/venv"
 DATA_DIR="$REPO_DIR/data"
 CAMILLA_DIR="$USER_HOME/camilladsp"
 PLAYBACK_DEVICE="${COLDTH_PLAYBACK_DEVICE:-hw:Headphones,0}"
+SAMPLE_RATE="${COLDTH_SAMPLE_RATE:-44100}"
+CHUNKSIZE="${COLDTH_CHUNKSIZE:-1024}"
 
 if [[ ! -f "$REPO_DIR/pyproject.toml" ]]; then
   echo "Could not identify the Coldth repository at $REPO_DIR" >&2
+  exit 1
+fi
+if [[ ! "$SAMPLE_RATE" =~ ^[1-9][0-9]*$ ]]; then
+  echo "COLDTH_SAMPLE_RATE must be a positive integer." >&2
+  exit 1
+fi
+if [[ ! "$CHUNKSIZE" =~ ^[1-9][0-9]*$ ]]; then
+  echo "COLDTH_CHUNKSIZE must be a positive integer." >&2
   exit 1
 fi
 if [[ ! -r /proc/device-tree/model ]] ||
@@ -80,6 +93,8 @@ fi
 echo "Coldth repository: $REPO_DIR"
 echo "Service account:    $INSTALL_USER"
 echo "Playback device:    $PLAYBACK_DEVICE"
+echo "Sample rate:        $SAMPLE_RATE"
+echo "Chunk size:         $CHUNKSIZE"
 echo "Analyzer:           $([[ $WITH_ANALYZER -eq 1 ]] && echo enabled || echo disabled)"
 echo "Album artwork:      $([[ "$ARTWORK_MODE" == "yes" ]] && echo enabled || echo disabled)"
 
@@ -165,6 +180,9 @@ backup_once /etc/systemd/system/camilladsp.service
 backup_once /etc/systemd/system/coldth.service
 
 SHAIRPORT_DEVICE="hw:Loopback,0,0"
+if [[ "$SAMPLE_RATE" != "44100" ]]; then
+  SHAIRPORT_DEVICE="plughw:CARD=Loopback,DEV=0"
+fi
 ANALYZER_ENV=""
 if [[ $WITH_ANALYZER -eq 1 ]]; then
   backup_once /etc/asound.conf
@@ -248,6 +266,8 @@ Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
 Environment=COLDTH_PLAYBACK_DEVICE=$PLAYBACK_DEVICE
 Environment=COLDTH_CAPTURE_FORMAT=S16LE
 Environment=COLDTH_PLAYBACK_FORMAT=S16LE
+Environment=COLDTH_SAMPLE_RATE=$SAMPLE_RATE
+Environment=COLDTH_CHUNKSIZE=$CHUNKSIZE
 $ANALYZER_ENV
 ExecStart=$VENV_DIR/bin/coldth
 Restart=on-failure

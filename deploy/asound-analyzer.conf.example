@@ -18,7 +18,7 @@ pcm.coldth_fanout_raw {
     bindings.3.channel 1
 }
 
-pcm.coldth_fanout {
+pcm.coldth_fanout_route {
     type route
     slave.pcm "coldth_fanout_raw"
     slave.channels 4
@@ -27,4 +27,11 @@ pcm.coldth_fanout {
     ttable.1.1 1
     ttable.0.2 1
     ttable.1.3 1
+}
+
+# Accept Shairport's native 44.1 kHz stream while allowing the loopback
+# consumers to establish another rate, such as a USB DAC's native 48 kHz.
+pcm.coldth_fanout {
+    type plug
+    slave.pcm "coldth_fanout_route"
 }

@@ -29,6 +29,19 @@ from .store import StateStore
 from .themes import ThemeRegistry
 
 
+def _positive_env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError as error:
+        raise RuntimeError(f"{name} must be a positive integer") from error
+    if value <= 0:
+        raise RuntimeError(f"{name} must be a positive integer")
+    return value
+
+
 def create_app(
     data_dir: Path | None = None,
     camilla_url: str | None = None,
@@ -41,6 +54,8 @@ def create_app(
         playback_device=os.getenv("COLDTH_PLAYBACK_DEVICE", "hw:Headphones,0"),
         capture_format=os.getenv("COLDTH_CAPTURE_FORMAT", "S16LE"),
         playback_format=os.getenv("COLDTH_PLAYBACK_FORMAT", "S16LE"),
+        samplerate=_positive_env_int("COLDTH_SAMPLE_RATE", 44100),
+        chunksize=_positive_env_int("COLDTH_CHUNKSIZE", 1024),
     )
     engine_url = camilla_url or os.getenv(
         "COLDTH_CAMILLADSP_URL", "ws://127.0.0.1:1234"

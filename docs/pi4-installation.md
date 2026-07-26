@@ -108,6 +108,20 @@ The normal pair is:
 - writer: `hw:Loopback,0,0`
 - reader: `hw:Loopback,1,0`
 
+For a playback device that only accepts 48 kHz, send Shairport through ALSA's
+conversion layer:
+
+```conf
+alsa = {
+    output_device = "plughw:CARD=Loopback,DEV=0";
+    output_rate = 44100;
+    output_format = "S16";
+};
+```
+
+Shairport remains at its native rate; the loopback, CamillaDSP, analyzer, and
+DAC then share the 48 kHz processing rate.
+
 ## 4. Configure Shairport Sync
 
 Back up `/etc/shairport-sync.conf`, then configure its active `general` and
@@ -235,6 +249,8 @@ Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
 Environment=COLDTH_PLAYBACK_DEVICE=hw:Headphones,0
 Environment=COLDTH_CAPTURE_FORMAT=S16LE
 Environment=COLDTH_PLAYBACK_FORMAT=S16LE
+Environment=COLDTH_SAMPLE_RATE=44100
+Environment=COLDTH_CHUNKSIZE=1024
 ExecStart=/home/livingroom/coldth/venv/bin/coldth
 Restart=on-failure
 RestartSec=2
@@ -251,6 +267,20 @@ WantedBy=multi-user.target
 
 The Pi headphone device rejects `S32LE` on the tested installation. Keep
 `S16LE` unless `aplay` proves another format works.
+
+For a fixed-48-kHz USB DAC, use its stable ALSA card name and direct hardware
+output:
+
+```ini
+Environment=COLDTH_PLAYBACK_DEVICE=hw:CARD=A,DEV=0
+Environment=COLDTH_SAMPLE_RATE=48000
+Environment=COLDTH_CHUNKSIZE=2048
+```
+
+Do not use playback-side `plughw` in this arrangement. Convert Shairport's
+44.1 kHz input before the loopback as shown above. When the analyzer is
+enabled, install `deploy/asound-analyzer.conf.example`; its outer `plug` stage
+performs the conversion before duplicating audio.
 
 Enable and start:
 

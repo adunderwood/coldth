@@ -59,6 +59,10 @@ Environment variables:
 - `COLDTH_CAPTURE_FORMAT` — ALSA capture sample format (default: `S16LE`)
 - `COLDTH_PLAYBACK_FORMAT` — ALSA playback sample format (default: `S16LE`,
   compatible with the Pi 4 headphone device)
+- `COLDTH_SAMPLE_RATE` — CamillaDSP, loopback capture, and analyzer rate
+  (default: `44100`; use `48000` for a fixed-48-kHz USB DAC)
+- `COLDTH_CHUNKSIZE` — CamillaDSP processing chunk size (default: `1024`;
+  `2048` is a conservative USB-DAC setting)
 
 For installation, start with the complete
 [Raspberry Pi 4 guide](docs/pi4-installation.md). See

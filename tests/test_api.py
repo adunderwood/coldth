@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from coldth.app import create_app
@@ -84,6 +86,22 @@ def test_v1_state_and_tone_commands_share_canonical_state(tmp_path):
         assert current["revision"] == 2
         assert current["tone"]["bands"]["1000"] == 1.5
         assert current["tone"]["balance"] == 12
+
+
+def test_audio_timing_can_be_configured_from_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("COLDTH_SAMPLE_RATE", "48000")
+    monkeypatch.setenv("COLDTH_CHUNKSIZE", "2048")
+
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        state = client.get("/api/v1/state").json()
+
+    assert state["audio"]["sampleRate"] == 48000
+    config = json.loads((tmp_path / "camilladsp.json").read_text())
+    assert config["devices"]["samplerate"] == 48000
+    assert config["devices"]["chunksize"] == 2048
+    assert config["devices"]["target_level"] == 4096
 
 
 def test_v1_event_stream_sends_snapshot_and_tone_changes(tmp_path):

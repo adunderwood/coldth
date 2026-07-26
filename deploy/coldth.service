@@ -19,6 +19,8 @@ Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
 Environment=COLDTH_PLAYBACK_DEVICE=hw:Headphones,0
 Environment=COLDTH_CAPTURE_FORMAT=S16LE
 Environment=COLDTH_PLAYBACK_FORMAT=S16LE
+Environment=COLDTH_SAMPLE_RATE=44100
+Environment=COLDTH_CHUNKSIZE=1024
 ExecStart=/home/livingroom/coldth/venv/bin/coldth
 Restart=on-failure
 RestartSec=2

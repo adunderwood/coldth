@@ -9,7 +9,7 @@ Coldth implements a deliberately inexpensive analyzer:
 ```text
 second ALSA Loopback feed
         ↓
-arecord (S16LE stereo, 44.1 kHz)
+arecord (S16LE stereo, Coldth processing rate)
         ↓
 2,048-frame Hann window
         ↓
@@ -60,6 +60,11 @@ Install the fan-out:
 ```sh
 sudo install -m 0644 deploy/asound-analyzer.conf.example /etc/asound.conf
 ```
+
+The repository fan-out places an ALSA `plug` conversion outside its route and
+multi stages. Shairport can remain at its native 44.1 kHz while both loopback
+readers use `COLDTH_SAMPLE_RATE`, including 48 kHz for a fixed-rate USB DAC.
+Both readers must use the same processing rate.
 
 Change Shairport's active ALSA section to:
 
