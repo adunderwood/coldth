@@ -1,7 +1,6 @@
 const metadataEnabled = document.querySelector("#metadata-enabled");
 const artworkEnabled = document.querySelector("#artwork-enabled");
 const metadataSource = document.querySelector("#metadata-source");
-const artworkDescription = document.querySelector("#artwork-description");
 const settingsMessage = document.querySelector("#settings-message");
 const themeStylesheet = document.querySelector("#theme-stylesheet");
 
@@ -21,12 +20,10 @@ async function request(url, options = {}) {
   return response.json();
 }
 
-let artworkAvailable = false;
-
 function applyPrivacy(privacy) {
   metadataEnabled.checked = privacy.metadata;
   artworkEnabled.checked = privacy.artwork;
-  artworkEnabled.disabled = !privacy.metadata || !artworkAvailable;
+  artworkEnabled.disabled = !privacy.metadata;
 }
 
 async function savePrivacy() {
@@ -49,7 +46,7 @@ async function savePrivacy() {
     settingsMessage.classList.add("error");
   } finally {
     metadataEnabled.disabled = false;
-    artworkEnabled.disabled = !metadataEnabled.checked || !artworkAvailable;
+    artworkEnabled.disabled = !metadataEnabled.checked;
   }
 }
 
@@ -63,16 +60,10 @@ request("/api/v1/settings")
   .then((settings) => {
     applyPrivacy(settings.privacy);
     const configured = settings.sources.shairportMetadata.configured;
-    artworkAvailable = settings.sources.shairportMetadata.artworkAvailable;
-    applyPrivacy(settings.privacy);
     metadataSource.textContent = configured
       ? "Shairport source ready"
       : "Shairport source not configured";
     metadataSource.classList.toggle("online", configured);
-    if (!artworkAvailable) {
-      artworkDescription.textContent =
-        "Artwork requests are disabled in Shairport. See the Pi installation guide to opt in.";
-    }
   })
   .catch((error) => {
     settingsMessage.textContent = error.message;

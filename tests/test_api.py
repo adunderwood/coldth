@@ -8,20 +8,20 @@ def test_eq_and_preset_round_trip(tmp_path):
     with TestClient(
         create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
     ) as client:
-        state = client.get("/api/state").json()
-        assert state["bands"] == flat_bands()
+        state = client.get("/api/v1/state").json()
+        assert state["tone"]["bands"] == flat_bands()
 
         bands = flat_bands()
         bands["250"] = -2.5
-        response = client.put("/api/eq", json={"bands": bands})
+        response = client.put("/api/v1/tone/eq", json={"bands": bands})
         assert response.status_code == 200
-        assert response.json()["bands"]["250"] == -2.5
+        assert response.json()["tone"]["bands"]["250"] == -2.5
 
         response = client.post(
-            "/api/presets", json={"name": "Less boxy", "bands": bands}
+            "/api/v1/presets", json={"name": "Less boxy", "bands": bands}
         )
         assert response.status_code == 201
-        assert [item["name"] for item in client.get("/api/presets").json()] == [
+        assert [item["name"] for item in client.get("/api/v1/presets").json()] == [
             "Flat",
             "Less boxy",
         ]
@@ -33,7 +33,7 @@ def test_invalid_eq_is_rejected(tmp_path):
     ) as client:
         bands = flat_bands()
         bands["31"] = 20
-        response = client.put("/api/eq", json={"bands": bands})
+        response = client.put("/api/v1/tone/eq", json={"bands": bands})
         assert response.status_code == 422
 
 
@@ -41,11 +41,11 @@ def test_balance_round_trip(tmp_path):
     with TestClient(
         create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
     ) as client:
-        response = client.put("/api/balance", json={"balance": -35})
+        response = client.put("/api/v1/tone/balance", json={"balance": -35})
 
         assert response.status_code == 200
-        assert response.json()["balance"] == -35
-        assert client.get("/api/state").json()["balance"] == -35
+        assert response.json()["tone"]["balance"] == -35
+        assert client.get("/api/v1/state").json()["tone"]["balance"] == -35
 
 
 def test_v1_state_and_tone_commands_share_canonical_state(tmp_path):
@@ -84,7 +84,6 @@ def test_v1_state_and_tone_commands_share_canonical_state(tmp_path):
         assert current["revision"] == 2
         assert current["tone"]["bands"]["1000"] == 1.5
         assert current["tone"]["balance"] == 12
-        assert client.get("/api/state").json()["balance"] == 12
 
 
 def test_v1_event_stream_sends_snapshot_and_tone_changes(tmp_path):
@@ -149,6 +148,75 @@ def test_privacy_settings_default_to_text_only_and_persist(tmp_path):
         }
 
 
+def test_v1_preset_operations_publish_events_and_update_state(tmp_path):
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        with client.websocket_connect("/api/v1/events") as socket:
+            socket.receive_json()
+
+            def receive(event_type):
+                while True:
+                    event = socket.receive_json()
+                    if event["type"] == event_type:
+                        return event
+
+            assert [item["name"] for item in client.get("/api/v1/presets").json()] == [
+                "Flat"
+            ]
+
+            bands = flat_bands()
+            bands["250"] = -3.5
+            saved = client.post(
+                "/api/v1/presets",
+                json={"name": "Less boxy", "bands": bands},
+            )
+            assert saved.status_code == 201
+            assert saved.json()["preset"]["name"] == "Less boxy"
+            assert receive("preset.saved")["data"]["preset"]["bands"]["250"] == -3.5
+
+            imported_bands = flat_bands()
+            imported_bands["8000"] = 2.0
+            imported = client.post(
+                "/api/v1/presets/import",
+                json={"name": "Air", "bands": imported_bands},
+            )
+            assert imported.status_code == 201
+            assert receive("preset.imported")["data"]["preset"]["name"] == "Air"
+
+            exported = client.get("/api/v1/presets/Less%20boxy/export")
+            assert exported.json() == {"name": "Less boxy", "bands": bands}
+
+            loaded = client.post("/api/v1/presets/Less%20boxy/load")
+            assert loaded.status_code == 200
+            assert loaded.json()["tone"]["preset"] == "Less boxy"
+            loaded_event = receive("preset.loaded")
+            assert loaded_event["data"]["tone"]["bands"]["250"] == -3.5
+            state = client.get("/api/v1/state").json()
+            assert state["tone"]["preset"] == "Less boxy"
+            assert state["tone"]["bands"]["250"] == -3.5
+
+            deleted = client.delete("/api/v1/presets/Less%20boxy")
+            assert deleted.status_code == 204
+            assert receive("preset.deleted")["data"]["name"] == "Less boxy"
+            assert client.get("/api/v1/state").json()["tone"]["preset"] is None
+
+
+def test_manual_v1_eq_change_clears_active_preset(tmp_path):
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        client.post("/api/v1/presets/Flat/load")
+        assert client.get("/api/v1/state").json()["tone"]["preset"] == "Flat"
+
+        bands = flat_bands()
+        bands["31"] = 1.0
+        response = client.put("/api/v1/tone/eq", json={"bands": bands})
+
+        assert response.json()["tone"]["preset"] is None
+        assert client.get("/api/v1/state").json()["tone"]["preset"] is None
+
+
 def test_settings_page_is_available(tmp_path):
     with TestClient(
         create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
@@ -163,9 +231,24 @@ def test_two_builtin_themes_are_available(tmp_path):
     with TestClient(
         create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
     ) as client:
-        themes = client.get("/api/themes").json()
+        themes = client.get("/api/v1/themes").json()
 
     assert [theme["id"] for theme in themes] == [
         "black-1987",
         "original-yellow",
     ]
+
+
+def test_unversioned_api_is_not_exposed(tmp_path):
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        for path in (
+            "/api/state",
+            "/api/eq",
+            "/api/balance",
+            "/api/presets",
+            "/api/meters",
+            "/api/themes",
+        ):
+            assert client.get(path).status_code == 404

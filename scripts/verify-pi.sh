@@ -38,7 +38,7 @@ else
   bad "CamillaDSP WebSocket is not listening on 1234"
 fi
 
-if curl -fsS http://127.0.0.1:8080/api/state >/dev/null 2>&1; then
+if curl -fsS http://127.0.0.1:8080/api/v1/state >/dev/null 2>&1; then
   ok "Coldth API is responding on 8080"
 else
   bad "Coldth API is not responding on 8080"

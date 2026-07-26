@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#11120f">
     <title>Settings · Coldth</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=7">
+    <link rel="stylesheet" href="/assets/styles.css">
     <link id="theme-stylesheet" rel="stylesheet">
-    <script src="/assets/settings.js?v=1" defer></script>
+    <script src="/assets/settings.js" defer></script>
   </head>
   <body>
     <main class="settings-page">
@@ -43,6 +43,28 @@
           </span>
           <input id="artwork-enabled" type="checkbox">
         </label>
+
+        <details class="settings-help">
+          <summary>Artwork enabled here but not appearing?</summary>
+          <p>
+            Shairport must also request it. In
+            <code>/etc/shairport-sync.conf</code>, merge these values into the
+            existing <code>metadata</code> section—do not put
+            <code>include_cover_art</code> at the top level:
+          </p>
+          <pre><code>metadata = {
+    enabled = "yes";
+    include_cover_art = "yes";
+    pipe_name = "/tmp/shairport-sync-metadata";
+};</code></pre>
+          <p>Then restart Shairport and reconnect AirPlay:</p>
+          <pre><code>sudo systemctl restart shairport-sync</code></pre>
+          <p>
+            To stop requesting artwork, change
+            <code>include_cover_art</code> back to <code>"no"</code> and
+            restart Shairport.
+          </p>
+        </details>
 
         <p class="settings-note">
           Coldth does not contact a music database or artwork service. It only

@@ -18,6 +18,10 @@
   box-sizing: border-box;
 }
 
+.presentation-contents {
+  display: contents;
+}
+
 body {
   min-width: 320px;
   min-height: 100vh;
@@ -508,6 +512,34 @@ button:hover,
 
 .settings-note {
   padding-top: 20px;
+}
+
+.settings-help {
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.settings-help summary {
+  color: var(--text);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.settings-help p {
+  margin-top: 14px;
+}
+
+.settings-help pre {
+  overflow-x: auto;
+  margin: 10px 0 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #090c08;
+  color: var(--text);
+  font-size: 0.75rem;
 }
 
 .danger-button {

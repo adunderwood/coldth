@@ -33,7 +33,10 @@ For the exact setup including the experimental ten-band display:
 The installer performs the steps in this guide, derives the service account
 and repository paths, backs up replaced configuration with a
 `.coldth-before` suffix, and runs `scripts/verify-pi.sh`. It can be re-run to
-repair or update the installation.
+repair or update the installation. It asks whether to enable album artwork and
+configures both Shairport solicitation and Coldth's persisted preference from
+that answer. Automated installations can pass `--with-artwork` or
+`--without-artwork`; the non-interactive default is off.
 
 Use the remaining sections for understanding, manual installation, and
 troubleshooting.
@@ -226,7 +229,6 @@ Environment=COLDTH_HOST=0.0.0.0
 Environment=COLDTH_PORT=8080
 Environment=COLDTH_CAMILLADSP_URL=ws://127.0.0.1:1234
 Environment=COLDTH_SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata
-Environment=COLDTH_SHAIRPORT_ARTWORK_AVAILABLE=false
 # Optional; omit until docs/analyzer.md has been completed:
 Environment=COLDTH_ANALYZER_DEVICE=hw:Loopback,1,1
 Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
@@ -280,20 +282,14 @@ Shairport's metadata block to:
 include_cover_art = "yes";
 ```
 
-Then change the Coldth service environment to:
-
-```ini
-Environment=COLDTH_SHAIRPORT_ARTWORK_AVAILABLE=true
-```
-
-Reload and restart both services:
+Restart Shairport:
 
 ```sh
-sudo systemctl daemon-reload
-sudo systemctl restart coldth shairport-sync
+sudo systemctl restart shairport-sync
 ```
 
-Finally enable **Use album artwork** at `/settings`. Shairport's
+Then enable **Use album artwork** at `/settings`; Coldth does not require a
+service edit or restart. Shairport's
 `include_cover_art` option controls whether it solicits artwork from the
 sender; the browser setting controls whether Coldth retains and serves it.
 To stop artwork transfer entirely, set `include_cover_art` back to `"no"` and
@@ -354,7 +350,7 @@ test -x /home/livingroom/coldth/venv/bin/coldth
 Coldth has not supplied a configuration, or the audio device rejected it:
 
 ```sh
-curl -s http://127.0.0.1:8080/api/state | venv/bin/python -m json.tool
+curl -s http://127.0.0.1:8080/api/v1/state | venv/bin/python -m json.tool
 tail -n 80 /home/livingroom/camilladsp/camilladsp.log
 camilladsp -c /home/livingroom/coldth/data/camilladsp.json
 ```

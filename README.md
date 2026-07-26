@@ -39,6 +39,7 @@ Run the tests with:
 
 ```sh
 pytest
+npm run test:js
 ```
 
 ## Configuration
@@ -51,8 +52,6 @@ Environment variables:
 - `COLDTH_CAMILLADSP_URL` — engine socket (default: `ws://127.0.0.1:1234`)
 - `COLDTH_SHAIRPORT_METADATA_PIPE` — optional Shairport Sync metadata FIFO,
   normally `/tmp/shairport-sync-metadata`
-- `COLDTH_SHAIRPORT_ARTWORK_AVAILABLE` — set to `true` only when Shairport is
-  configured to solicit cover art (default: false)
 - `COLDTH_ANALYZER_DEVICE` — optional ALSA capture device for the local
   ten-band FFT, such as `hw:Loopback,1,1` (disabled when unset)
 - `COLDTH_CAPTURE_DEVICE` — CamillaDSP ALSA capture device
@@ -72,6 +71,11 @@ The versioned public contract is designed in
 client of canonical receiver state and deliberately keeps DSP topology private.
 The declarative `.coldth-theme` package, layout, inheritance, and control
 motion model are defined in [theme packages](docs/theme-packages.md).
+Implementation status and ordering are tracked in the
+[roadmap](docs/roadmap.md). The future sandboxed visualization platform is
+described in [visualizer plugins](docs/visualizer-plugins.md).
+The current trusted browser control contract is documented in
+[component and presentation registry](docs/component-presentations.md).
 
 On a newly imaged Pi, the preferred installation is:
 
@@ -80,6 +84,9 @@ On a newly imaged Pi, the preferred installation is:
 ```
 
 Add `--with-analyzer` to enable the experimental ten-band FFT from the start.
+Interactive installation also asks whether Shairport should request album
+artwork. For unattended installation, choose explicitly with `--with-artwork`
+or `--without-artwork`; the unattended default is off.
 The installer is safe to re-run, backs up displaced system configuration, and
 finishes with a service health check. See `./scripts/install-pi.sh --help`.
 

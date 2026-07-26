@@ -9,18 +9,26 @@ GET /api/v1/state
 GET /api/v1/settings
 PUT /api/v1/settings/privacy
 GET /api/v1/artwork/current
+GET /api/v1/themes
 PUT /api/v1/tone/eq
 PUT /api/v1/tone/balance
+GET /api/v1/presets
+POST /api/v1/presets
+POST /api/v1/presets/import
+GET /api/v1/presets/{name}/export
+POST /api/v1/presets/{name}/load
+DELETE /api/v1/presets/{name}
 WS  /api/v1/events
 ```
 
-The existing unversioned endpoints remain available for the bundled UI and
-delegate to the same store and CamillaDSP application path. The event stream
-sends an initial canonical snapshot, `tone.changed` events, and normalized
+The bundled receiver uses this API exclusively. The prototype's unversioned
+routes were removed before the first public contract. The event stream sends
+an initial canonical snapshot, `tone.changed` events, and normalized
 `meter.frame`, `metadata.changed`, and `transport.changed` events. Shairport
 metadata, privacy settings, and current in-memory artwork are implemented.
-Preset routes and their events are the next migration slice; they are not
-implemented under `/api/v1` yet.
+Preset routes, active-preset state, and preset lifecycle events are
+implemented. The bundled receiver has not yet migrated its preset controls to
+these versioned routes.
 
 ## Purpose
 
@@ -87,6 +95,19 @@ values, or ALSA topology.
     },
     "balance": 0,
     "preset": null
+  },
+  "limits": {
+    "eq": {
+      "frequencies": [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000],
+      "min": -12.0,
+      "max": 12.0,
+      "step": 0.5
+    },
+    "balance": {
+      "min": -100,
+      "max": 100,
+      "step": 1
+    }
   },
   "audio": {
     "engine": "running",
@@ -172,7 +193,30 @@ POST   /api/v1/presets/import
 ```
 
 The built-in `Flat` preset resets EQ bands. Balance is receiver state and is
-not part of an EQ preset.
+not part of an EQ preset. Loading a preset stores its name in `tone.preset`.
+A direct EQ change clears `tone.preset`; replacing or deleting the active
+user preset also clears it.
+
+Collection mutations publish `preset.saved`, `preset.imported`, or
+`preset.deleted`. Loading publishes one `preset.loaded` event containing both
+the preset and resulting tone fragment:
+
+```json
+{
+  "revision": 12,
+  "preset": {
+    "name": "Less boxy",
+    "bands": {"31": 0, "62": -2, "125": -3}
+  },
+  "tone": {
+    "bands": {"31": 0, "62": -2, "125": -3},
+    "preset": "Less boxy"
+  }
+}
+```
+
+The abbreviated band objects above are illustrative; real preset and tone
+objects contain exactly all ten Coldth frequencies.
 
 ### Volume
 
@@ -241,11 +285,15 @@ Initial event types:
 ```text
 state.snapshot
 tone.changed
+preset.saved
+preset.imported
 preset.loaded
+preset.deleted
 audio.changed
 transport.changed
 metadata.changed
 meter.frame
+settings.changed
 theme.changed
 error
 ```
@@ -364,26 +412,9 @@ State store ────┘
 
 FastAPI route handlers should not become the canonical state model.
 
-## Migration from the MVP API
+## Prototype API removal
 
-The existing unversioned endpoints remain temporarily:
-
-```text
-/api/state
-/api/eq
-/api/balance
-/api/presets
-/api/meters
-/api/themes
-```
-
-Implementation sequence:
-
-1. introduce core state and event types behind existing routes;
-2. make the current UI consume `/api/v1/state` and `/api/v1/events`;
-3. add compatibility wrappers for old routes;
-4. move theme manifests to semantic tokens;
-5. add input metadata adapters; and
-6. remove unversioned endpoints only in a future major release.
-
-This sequence changes the inside before replacing the working faceplate.
+Coldth briefly used unversioned routes during its initial prototype. They were
+removed when the bundled receiver migrated to v1. No released plugin,
+faceplate, or third-party client contract depended on them, so compatibility
+aliases would have preserved accidental design without protecting users.

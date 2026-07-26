@@ -24,7 +24,6 @@ from .model import (
     MIN_GAIN,
     GAIN_STEP,
     ValidationError,
-    flat_bands,
 )
 from .store import StateStore
 from .themes import ThemeRegistry
@@ -60,12 +59,7 @@ def create_app(
     )
     events = EventBus()
     event_loop: asyncio.AbstractEventLoop | None = None
-    shairport_artwork_available = (
-        os.getenv("COLDTH_SHAIRPORT_ARTWORK_AVAILABLE", "").lower() == "true"
-    )
-    metadata = MetadataTracker(
-        lambda: store.privacy()["artwork"] and shairport_artwork_available
-    )
+    metadata = MetadataTracker(lambda: store.privacy()["artwork"])
 
     def publish_adapter_event(event_type: str, data: dict[str, object]) -> None:
         loop = event_loop
@@ -154,6 +148,15 @@ def create_app(
         lifespan=lifespan,
     )
 
+    @app.middleware("http")
+    async def ui_cache_policy(request, call_next):
+        response = await call_next(request)
+        if request.url.path in {"/", "/settings"} or request.url.path.startswith(
+            "/assets/"
+        ):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     def engine_name(status: dict[str, Any]) -> str:
         if status.get("online") is not True:
             return "offline"
@@ -184,7 +187,20 @@ def create_app(
             "tone": {
                 "bands": store.bands(),
                 "balance": store.balance(),
-                "preset": None,
+                "preset": store.active_preset(),
+            },
+            "limits": {
+                "eq": {
+                    "frequencies": list(BANDS),
+                    "min": MIN_GAIN,
+                    "max": MAX_GAIN,
+                    "step": GAIN_STEP,
+                },
+                "balance": {
+                    "min": MIN_BALANCE,
+                    "max": MAX_BALANCE,
+                    "step": 1,
+                },
             },
             "audio": {
                 "engine": engine_name(engine),
@@ -217,7 +233,7 @@ def create_app(
         applied = await asyncio.to_thread(camilla.apply, bands, store.balance())
         await events.publish(
             "tone.changed",
-            {"revision": store.revision(), "bands": bands},
+            {"revision": store.revision(), "bands": bands, "preset": None},
         )
         return bands, applied
 
@@ -233,6 +249,52 @@ def create_app(
         )
         return balance, applied
 
+    async def save_preset_value(
+        payload: dict[str, Any], event_type: str
+    ) -> dict[str, Any]:
+        try:
+            preset = store.save_preset(payload)
+        except ValidationError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        await events.publish(
+            event_type,
+            {"revision": store.revision(), "preset": preset},
+        )
+        return preset
+
+    async def load_preset_value(name: str) -> tuple[dict[str, Any], bool]:
+        try:
+            preset = store.load_preset(name)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="Preset not found") from error
+        applied = await asyncio.to_thread(
+            camilla.apply, preset["bands"], store.balance()
+        )
+        await events.publish(
+            "preset.loaded",
+            {
+                "revision": store.revision(),
+                "preset": preset,
+                "tone": {
+                    "bands": preset["bands"],
+                    "preset": preset["name"],
+                },
+            },
+        )
+        return preset, applied
+
+    async def delete_preset_value(name: str) -> None:
+        try:
+            deleted_name = store.delete_preset(name)
+        except ValidationError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="Preset not found") from error
+        await events.publish(
+            "preset.deleted",
+            {"revision": store.revision(), "name": deleted_name},
+        )
+
     @app.get("/api/v1/state")
     def get_v1_state() -> dict[str, Any]:
         return canonical_state()
@@ -244,10 +306,13 @@ def create_app(
             "sources": {
                 "shairportMetadata": {
                     "configured": metadata_adapter.configured,
-                    "artworkAvailable": shairport_artwork_available,
                 }
             },
         }
+
+    @app.get("/api/v1/themes")
+    def get_v1_themes() -> list[dict[str, Any]]:
+        return themes.list()
 
     @app.put("/api/v1/settings/privacy")
     async def set_v1_privacy(payload: dict[str, Any]) -> dict[str, Any]:
@@ -288,7 +353,7 @@ def create_app(
         bands, applied = await apply_eq(payload)
         return {
             "revision": store.revision(),
-            "tone": {"bands": bands},
+            "tone": {"bands": bands, "preset": None},
             "engine": camilla.status(),
             "applied": applied,
         }
@@ -303,36 +368,41 @@ def create_app(
             "applied": applied,
         }
 
-    @app.get("/api/state")
-    def get_state() -> dict[str, Any]:
+    @app.get("/api/v1/presets")
+    def get_v1_presets() -> list[dict[str, Any]]:
+        return store.presets()
+
+    @app.post("/api/v1/presets", status_code=201)
+    async def save_v1_preset(payload: dict[str, Any]) -> dict[str, Any]:
+        preset = await save_preset_value(payload, "preset.saved")
+        return {"revision": store.revision(), "preset": preset}
+
+    @app.post("/api/v1/presets/import", status_code=201)
+    async def import_v1_preset(payload: dict[str, Any]) -> dict[str, Any]:
+        preset = await save_preset_value(payload, "preset.imported")
+        return {"revision": store.revision(), "preset": preset}
+
+    @app.get("/api/v1/presets/{name}/export")
+    def export_v1_preset(name: str) -> dict[str, Any]:
+        try:
+            return store.get_preset(unquote(name))
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="Preset not found") from error
+
+    @app.post("/api/v1/presets/{name}/load")
+    async def load_v1_preset(name: str) -> dict[str, Any]:
+        preset, applied = await load_preset_value(unquote(name))
         return {
-            "bands": store.bands(),
-            "balance": store.balance(),
-            "frequencies": list(BANDS),
-            "range": {"min": MIN_GAIN, "max": MAX_GAIN, "step": GAIN_STEP},
-            "balance_range": {"min": MIN_BALANCE, "max": MAX_BALANCE, "step": 1},
+            "revision": store.revision(),
+            "preset": preset,
+            "tone": {"bands": preset["bands"], "preset": preset["name"]},
             "engine": camilla.status(),
+            "applied": applied,
         }
 
-    @app.get("/api/themes")
-    def get_themes() -> list[dict[str, Any]]:
-        return themes.list()
-
-    @app.websocket("/api/meters")
-    async def meters(socket: WebSocket) -> None:
-        await socket.accept()
-        try:
-            while True:
-                payload: dict[str, Any] = {"stereo": None, "bands": None}
-                try:
-                    payload["stereo"] = await asyncio.to_thread(signal_levels.levels)
-                except Exception:
-                    pass
-                payload["bands"] = analyzer.levels()
-                await socket.send_json(payload)
-                await asyncio.sleep(0.1)
-        except (WebSocketDisconnect, RuntimeError):
-            return
+    @app.delete("/api/v1/presets/{name}", status_code=204)
+    async def delete_v1_preset(name: str) -> None:
+        await delete_preset_value(unquote(name))
 
     @app.websocket("/api/v1/events")
     async def event_stream(socket: WebSocket) -> None:
@@ -346,66 +416,6 @@ def create_app(
             return
         finally:
             events.unsubscribe(queue)
-
-    @app.put("/api/eq")
-    async def set_eq(payload: dict[str, Any]) -> dict[str, Any]:
-        bands, applied = await apply_eq(payload)
-        return {"bands": bands, "engine": camilla.status(), "applied": applied}
-
-    @app.put("/api/balance")
-    async def set_balance(payload: dict[str, Any]) -> dict[str, Any]:
-        balance, applied = await apply_balance(payload)
-        return {"balance": balance, "engine": camilla.status(), "applied": applied}
-
-    @app.post("/api/reset")
-    def reset() -> dict[str, Any]:
-        bands = store.set_bands(flat_bands())
-        applied = camilla.apply(bands, store.balance())
-        return {"bands": bands, "engine": camilla.status(), "applied": applied}
-
-    @app.get("/api/presets")
-    def get_presets() -> list[dict[str, Any]]:
-        return store.presets()
-
-    @app.post("/api/presets", status_code=201)
-    def save_preset(payload: dict[str, Any]) -> dict[str, Any]:
-        try:
-            return store.save_preset(payload)
-        except ValidationError as error:
-            raise HTTPException(status_code=422, detail=str(error)) from error
-
-    @app.post("/api/presets/import", status_code=201)
-    def import_preset(payload: dict[str, Any]) -> dict[str, Any]:
-        try:
-            return store.save_preset(payload)
-        except ValidationError as error:
-            raise HTTPException(status_code=422, detail=str(error)) from error
-
-    @app.get("/api/presets/{name}/export")
-    def export_preset(name: str) -> dict[str, Any]:
-        try:
-            return store.get_preset(unquote(name))
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="Preset not found") from error
-
-    @app.post("/api/presets/{name}/load")
-    def load_preset(name: str) -> dict[str, Any]:
-        try:
-            preset = store.get_preset(unquote(name))
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="Preset not found") from error
-        bands = store.set_bands(preset["bands"])
-        applied = camilla.apply(bands, store.balance())
-        return {"bands": bands, "engine": camilla.status(), "applied": applied}
-
-    @app.delete("/api/presets/{name}", status_code=204)
-    def delete_preset(name: str) -> None:
-        try:
-            store.delete_preset(unquote(name))
-        except ValidationError as error:
-            raise HTTPException(status_code=422, detail=str(error)) from error
-        except KeyError as error:
-            raise HTTPException(status_code=404, detail="Preset not found") from error
 
     app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
 

@@ -28,6 +28,7 @@ class StateStore:
                 "balance": 0,
                 "presets": [],
                 "privacy": DEFAULT_PRIVACY.copy(),
+                "active_preset": None,
             }
             self._write(state)
             return state
@@ -39,6 +40,17 @@ class StateStore:
                 Preset.from_mapping(item).as_dict() for item in raw.get("presets", [])
             ]
             privacy = self._validate_privacy(raw.get("privacy", DEFAULT_PRIVACY))
+            active_preset = raw.get("active_preset")
+            if active_preset is not None and not isinstance(active_preset, str):
+                raise ValidationError("active_preset must be text or null")
+            known_presets = {"flat": "Flat"} | {
+                item["name"].casefold(): item["name"] for item in presets
+            }
+            active_preset = (
+                known_presets.get(active_preset.casefold())
+                if active_preset is not None
+                else None
+            )
         except (OSError, json.JSONDecodeError, ValidationError, TypeError) as error:
             raise RuntimeError(f"Invalid Coldth state file {self.path}: {error}") from error
         return {
@@ -46,6 +58,7 @@ class StateStore:
             "balance": balance,
             "presets": presets,
             "privacy": privacy,
+            "active_preset": active_preset,
         }
 
     @staticmethod
@@ -99,6 +112,7 @@ class StateStore:
         clean = validate_bands(bands)
         with self._lock:
             self._state["bands"] = clean
+            self._state["active_preset"] = None
             self._write(self._state)
             self._revision += 1
             return clean.copy()
@@ -134,6 +148,10 @@ class StateStore:
                 for item in self._state["presets"]
             ]
 
+    def active_preset(self) -> str | None:
+        with self._lock:
+            return self._state["active_preset"]
+
     def save_preset(self, value: Any) -> dict[str, Any]:
         preset = Preset.from_mapping(value)
         with self._lock:
@@ -145,27 +163,56 @@ class StateStore:
             ]
             self._state["presets"].append(preset.as_dict())
             self._state["presets"].sort(key=lambda item: item["name"].casefold())
+            if (
+                self._state["active_preset"] is not None
+                and self._state["active_preset"].casefold() == key
+            ):
+                self._state["active_preset"] = None
             self._write(self._state)
             self._revision += 1
         return preset.as_dict()
 
-    def delete_preset(self, name: str) -> None:
+    def delete_preset(self, name: str) -> str:
         if name.casefold() == "flat":
             raise ValidationError("Flat cannot be deleted")
         with self._lock:
+            deleted_name = next(
+                (
+                    item["name"]
+                    for item in self._state["presets"]
+                    if item["name"].casefold() == name.casefold()
+                ),
+                None,
+            )
+            if deleted_name is None:
+                raise KeyError(name)
             before = len(self._state["presets"])
             self._state["presets"] = [
                 item
                 for item in self._state["presets"]
                 if item["name"].casefold() != name.casefold()
             ]
-            if len(self._state["presets"]) == before:
-                raise KeyError(name)
+            assert len(self._state["presets"]) < before
+            if (
+                self._state["active_preset"] is not None
+                and self._state["active_preset"].casefold() == name.casefold()
+            ):
+                self._state["active_preset"] = None
             self._write(self._state)
             self._revision += 1
+            return deleted_name
 
     def get_preset(self, name: str) -> dict[str, Any]:
         for preset in self.presets():
             if preset["name"].casefold() == name.casefold():
                 return preset
         raise KeyError(name)
+
+    def load_preset(self, name: str) -> dict[str, Any]:
+        with self._lock:
+            preset = self.get_preset(name)
+            self._state["bands"] = preset["bands"].copy()
+            self._state["active_preset"] = preset["name"]
+            self._write(self._state)
+            self._revision += 1
+            return {"name": preset["name"], "bands": preset["bands"].copy()}

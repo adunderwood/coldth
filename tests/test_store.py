@@ -47,3 +47,29 @@ def test_user_preset_can_be_replaced_and_deleted(tmp_path):
     assert store.get_preset("SPEAKERS")["bands"]["125"] == -2
     store.delete_preset("speakers")
     assert len(store.presets()) == 1
+
+
+def test_active_preset_persists_and_manual_eq_clears_it(tmp_path):
+    store = StateStore(tmp_path)
+    bands = flat_bands()
+    bands["4000"] = 2.5
+    store.save_preset({"name": "Presence", "bands": bands})
+
+    loaded = store.load_preset("presence")
+
+    assert loaded["name"] == "Presence"
+    assert store.active_preset() == "Presence"
+    assert StateStore(tmp_path).active_preset() == "Presence"
+
+    store.set_bands(bands)
+    assert store.active_preset() is None
+
+
+def test_deleting_active_preset_clears_active_name(tmp_path):
+    store = StateStore(tmp_path)
+    store.save_preset({"name": "Temporary", "bands": flat_bands()})
+    store.load_preset("Temporary")
+
+    store.delete_preset("temporary")
+
+    assert store.active_preset() is None

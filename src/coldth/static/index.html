@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#11120f">
     <title>Coldth</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=7">
+    <link rel="stylesheet" href="/assets/styles.css">
     <link id="theme-stylesheet" rel="stylesheet">
-    <script src="/assets/app.js?v=7" defer></script>
+    <script src="/assets/app.js" type="module"></script>
   </head>
   <body>
     <main>
@@ -35,43 +35,11 @@
             <h2 id="meters-title">Stereo</h2>
           </div>
           <div class="stereo-meters">
-            <div class="meter-row" data-channel="0">
-              <span class="channel-label">L</span>
-              <div class="meter-track">
-                <span class="meter-fill"></span>
-                <i class="peak-marker"></i>
-              </div>
-              <output>−∞</output>
-            </div>
-            <div class="meter-row" data-channel="1">
-              <span class="channel-label">R</span>
-              <div class="meter-track">
-                <span class="meter-fill"></span>
-                <i class="peak-marker"></i>
-              </div>
-              <output>−∞</output>
-            </div>
-            <div class="balance-control">
-              <span>L</span>
-              <label>
-                <span>Balance</span>
-                <input id="balance" type="range" min="-100" max="100" step="1" value="0">
-              </label>
-              <span>R</span>
-              <output id="balance-value">Center</output>
-            </div>
+            <div id="stereo-meter-control" class="presentation-contents"></div>
+            <div id="balance-control" class="balance-control"></div>
           </div>
-          <div id="analyzer-status" class="analyzer-status">
-            10-band analyzer standby
-          </div>
-          <div id="now-playing" class="now-playing" hidden>
-            <img id="track-artwork" alt="">
-            <div>
-              <span id="track-state">AirPlay</span>
-              <strong id="track-title">Unknown track</strong>
-              <small id="track-byline"></small>
-            </div>
-          </div>
+          <div id="spectrum-control" class="presentation-contents"></div>
+          <div id="metadata-control" hidden></div>
         </div>
       </section>
 
@@ -86,47 +54,8 @@
         <div id="equalizer" class="equalizer" aria-busy="true"></div>
       </section>
 
-      <section class="preset-panel" aria-labelledby="preset-title">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Your settings</p>
-            <h2 id="preset-title">Presets</h2>
-          </div>
-          <button id="save-preset" class="primary-button" type="button">
-            Save current
-          </button>
-        </div>
-        <div class="preset-controls">
-          <select id="preset-list" aria-label="Choose preset"></select>
-          <button id="load-preset" type="button">Load</button>
-          <button id="export-preset" type="button">Export</button>
-          <button id="delete-preset" class="danger-button" type="button">
-            Delete
-          </button>
-          <label class="import-button">
-            Import
-            <input id="import-preset" type="file" accept="application/json,.json">
-          </label>
-        </div>
-      </section>
+      <section id="preset-component" class="preset-panel" aria-labelledby="preset-title"></section>
       <p id="message" class="message" role="status" aria-live="polite"></p>
     </main>
-
-    <dialog id="save-dialog">
-      <form method="dialog">
-        <p class="eyebrow">New preset</p>
-        <h2>Save this shape</h2>
-        <label>
-          Preset name
-          <input id="preset-name" maxlength="80" autocomplete="off" required>
-        </label>
-        <div class="dialog-actions">
-          <button value="cancel" class="quiet-button">Cancel</button>
-          <button id="confirm-save" value="default" class="primary-button">
-            Save preset
-          </button>
-        </div>
-      </form>
-    </dialog>
   </body>
 </html>

@@ -1,29 +1,50 @@
+import { ControlRegistry } from "./ui/registry.js";
+import {
+  BALANCE_COMPONENT,
+  BALANCE_SLIDER_PRESENTATION,
+  EQ_COMPONENT,
+  EQ_FADER_PRESENTATION,
+  LED_METERS_PRESENTATION,
+  METADATA_COMPONENT,
+  METERS_COMPONENT,
+  NOW_PLAYING_PRESENTATION,
+  PRESETS_COMPONENT,
+  PRESET_SELECTOR_PRESENTATION,
+  SPECTRUM_COMPONENT,
+  SPECTRUM_OVERLAY_PRESENTATION,
+  registerBuiltins,
+} from "./ui/builtins.js";
+
 const equalizer = document.querySelector("#equalizer");
 const engineStatus = document.querySelector("#engine-status");
 const message = document.querySelector("#message");
-const presetList = document.querySelector("#preset-list");
-const saveDialog = document.querySelector("#save-dialog");
-const presetName = document.querySelector("#preset-name");
 const themeList = document.querySelector("#theme-list");
 const themeStylesheet = document.querySelector("#theme-stylesheet");
-const analyzerStatus = document.querySelector("#analyzer-status");
-const balanceSlider = document.querySelector("#balance");
-const balanceValue = document.querySelector("#balance-value");
-const nowPlaying = document.querySelector("#now-playing");
-const trackArtwork = document.querySelector("#track-artwork");
-const trackState = document.querySelector("#track-state");
-const trackTitle = document.querySelector("#track-title");
-const trackByline = document.querySelector("#track-byline");
+const balanceRoot = document.querySelector("#balance-control");
+const metersRoot = document.querySelector("#stereo-meter-control");
+const spectrumRoot = document.querySelector("#spectrum-control");
+const metadataRoot = document.querySelector("#metadata-control");
+const presetsRoot = document.querySelector("#preset-component");
 
 let bands = {};
 let balance = 0;
 let updateTimer;
 let balanceTimer;
-let meterSocket;
+let eventSocket;
 let reconnectTimer;
 let currentMetadata = {};
 let currentTransport = {};
-const heldPeaks = [-60, -60];
+let presetItems = [];
+let activePreset = null;
+let selectedPreset = null;
+let eqControl;
+let balanceControl;
+let metersControl;
+let spectrumControl;
+let metadataControl;
+let presetsControl;
+const controls = new ControlRegistry();
+registerBuiltins(controls);
 
 const labelFrequency = (frequency) =>
   frequency >= 1000 ? `${frequency / 1000}k` : `${frequency}`;
@@ -40,7 +61,7 @@ function showMessage(text, error = false) {
 }
 
 async function initializeThemes() {
-  const themes = await request("/api/themes");
+  const themes = await request("/api/v1/themes");
   themeList.replaceChildren(
     ...themes.map((theme) => {
       const option = document.createElement("option");
@@ -92,40 +113,6 @@ async function request(url, options = {}) {
   return response.status === 204 ? null : response.json();
 }
 
-function renderBands(frequencies, range) {
-  equalizer.replaceChildren();
-  for (const frequency of frequencies) {
-    const key = String(frequency);
-    const band = document.createElement("div");
-    band.className = "band";
-    const output = document.createElement("output");
-    output.value = labelGain(bands[key]);
-    const wrap = document.createElement("div");
-    wrap.className = "slider-wrap";
-    const level = document.createElement("span");
-    level.className = "band-level";
-    level.setAttribute("aria-hidden", "true");
-    const slider = document.createElement("input");
-    slider.type = "range";
-    slider.min = range.min;
-    slider.max = range.max;
-    slider.step = range.step;
-    slider.value = bands[key];
-    slider.setAttribute("aria-label", `${frequency} hertz`);
-    slider.addEventListener("input", () => {
-      bands[key] = Number(slider.value);
-      output.value = labelGain(bands[key]);
-      scheduleUpdate();
-    });
-    const label = document.createElement("label");
-    label.textContent = labelFrequency(frequency);
-    wrap.append(level, slider);
-    band.append(output, wrap, label);
-    equalizer.append(band);
-  }
-  equalizer.setAttribute("aria-busy", "false");
-}
-
 function levelPercent(db) {
   return Math.max(0, Math.min(100, ((Number(db) + 60) / 60) * 100));
 }
@@ -136,113 +123,75 @@ function formatLevel(db) {
     : "−∞";
 }
 
-function updateStereoMeters(levels) {
-  const rms = levels?.playback_rms || levels?.playback_rms_since_last || [];
-  const peaks = levels?.playback_peak || levels?.playback_peak_since_last || [];
-  document.querySelectorAll(".meter-row").forEach((row, channel) => {
-    const rmsValue = Number(rms[channel] ?? -60);
-    const peakValue = Number(peaks[channel] ?? rmsValue);
-    heldPeaks[channel] = Math.max(peakValue, heldPeaks[channel] - 0.7);
-    row.querySelector(".meter-fill").style.width = `${levelPercent(rmsValue)}%`;
-    row.querySelector(".peak-marker").style.left =
-      `${levelPercent(heldPeaks[channel])}%`;
-    row.querySelector("output").value = formatLevel(peakValue);
-  });
-}
-
-function updateNormalizedMeters(frame) {
-  document.querySelectorAll(".meter-row").forEach((row, channel) => {
-    const rmsValue = Number(
-      (channel === 0 ? frame?.leftRms : frame?.rightRms) ?? -60,
-    );
-    const peakValue = Number(
-      (channel === 0 ? frame?.leftPeak : frame?.rightPeak) ?? rmsValue,
-    );
-    heldPeaks[channel] = Math.max(peakValue, heldPeaks[channel] - 0.7);
-    row.querySelector(".meter-fill").style.width = `${levelPercent(rmsValue)}%`;
-    row.querySelector(".peak-marker").style.left =
-      `${levelPercent(heldPeaks[channel])}%`;
-    row.querySelector("output").value = formatLevel(peakValue);
-  });
-}
-
-function updateNowPlaying() {
-  const available = Boolean(
-    currentMetadata.title || currentMetadata.artist || currentMetadata.album,
-  );
-  nowPlaying.hidden = !available;
-  if (!available) return;
-  trackTitle.textContent = currentMetadata.title || "Unknown track";
-  trackByline.textContent = [currentMetadata.artist, currentMetadata.album]
-    .filter(Boolean)
-    .join(" · ");
-  trackState.textContent =
-    currentTransport.state === "playing" ? "Now playing" : "AirPlay";
-  if (currentMetadata.artwork) {
-    trackArtwork.src = `${currentMetadata.artwork}?t=${Date.now()}`;
-    trackArtwork.hidden = false;
-  } else {
-    trackArtwork.removeAttribute("src");
-    trackArtwork.hidden = true;
-  }
-}
-
-function updateBandMeters(levels) {
-  const live = Array.isArray(levels) && levels.length === 10;
-  equalizer.classList.toggle("analyzer-live", live);
-  analyzerStatus.classList.toggle("online", live);
-  analyzerStatus.textContent = live
-    ? "10-band analyzer live"
-    : "10-band analyzer standby";
-  equalizer.querySelectorAll(".band-level").forEach((level, index) => {
-    level.style.setProperty("--level", `${live ? levelPercent(levels[index]) : 0}%`);
-  });
-}
-
-function connectMeters() {
+function connectEvents() {
   clearTimeout(reconnectTimer);
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  meterSocket = new WebSocket(`${protocol}//${location.host}/api/v1/events`);
-  meterSocket.addEventListener("message", (event) => {
+  eventSocket = new WebSocket(`${protocol}//${location.host}/api/v1/events`);
+  eventSocket.addEventListener("message", (event) => {
     const payload = JSON.parse(event.data);
     if (payload.type === "state.snapshot") {
       currentMetadata = payload.data.metadata || {};
       currentTransport = payload.data.transport || {};
-      updateNowPlaying();
+      applyTone(payload.data.tone);
+      metadataControl?.setValue({
+        metadata: currentMetadata,
+        transport: currentTransport,
+      });
     } else if (payload.type === "meter.frame") {
-      updateNormalizedMeters(payload.data);
-      updateBandMeters(payload.data.spectrum);
+      metersControl?.setValue(payload.data);
+      spectrumControl?.setValue(payload.data.spectrum);
     } else if (payload.type === "metadata.changed") {
       currentMetadata = payload.data;
-      updateNowPlaying();
+      metadataControl?.setValue({
+        metadata: currentMetadata,
+        transport: currentTransport,
+      });
     } else if (payload.type === "transport.changed") {
       currentTransport = payload.data;
-      updateNowPlaying();
+      metadataControl?.setValue({
+        metadata: currentMetadata,
+        transport: currentTransport,
+      });
+    } else if (payload.type === "tone.changed") {
+      applyTone(payload.data);
+    } else if (payload.type === "preset.loaded") {
+      applyTone(payload.data.tone);
+      refreshPresets(payload.data.preset.name);
+    } else if (
+      ["preset.saved", "preset.imported", "preset.deleted"].includes(payload.type)
+    ) {
+      refreshPresets();
     }
   });
-  meterSocket.addEventListener("close", () => {
-    updateStereoMeters(null);
-    updateBandMeters(null);
-    reconnectTimer = setTimeout(connectMeters, 2000);
+  eventSocket.addEventListener("close", () => {
+    metersControl?.setValue(null);
+    spectrumControl?.setValue(null);
+    reconnectTimer = setTimeout(connectEvents, 2000);
   });
-  meterSocket.addEventListener("error", () => meterSocket.close());
+  eventSocket.addEventListener("error", () => eventSocket.close());
 }
 
-function updateSliders() {
-  [...equalizer.querySelectorAll("input")].forEach((slider) => {
-    const frequency = slider.getAttribute("aria-label").split(" ")[0];
-    slider.value = bands[frequency];
-    slider.closest(".band").querySelector("output").value = labelGain(
-      bands[frequency],
-    );
-  });
+function applyTone(tone = {}) {
+  if (tone.bands) {
+    bands = tone.bands;
+    eqControl?.setValue(bands);
+  }
+  if (tone.balance !== undefined) {
+    balance = tone.balance;
+    balanceControl?.setValue(balance);
+  }
+  if ("preset" in tone) {
+    activePreset = tone.preset;
+    if (activePreset) selectedPreset = activePreset;
+    presetsControl?.setValue({ presets: presetItems, selected: selectedPreset });
+  }
 }
 
 function scheduleUpdate() {
   clearTimeout(updateTimer);
   updateTimer = setTimeout(async () => {
     try {
-      const result = await request("/api/eq", {
+      const result = await request("/api/v1/tone/eq", {
         method: "PUT",
         body: JSON.stringify({ bands }),
       });
@@ -265,7 +214,7 @@ function scheduleBalanceUpdate() {
   clearTimeout(balanceTimer);
   balanceTimer = setTimeout(async () => {
     try {
-      const result = await request("/api/balance", {
+      const result = await request("/api/v1/tone/balance", {
         method: "PUT",
         body: JSON.stringify({ balance }),
       });
@@ -277,157 +226,169 @@ function scheduleBalanceUpdate() {
   }, 120);
 }
 
-balanceSlider.addEventListener("input", () => {
-  balance = Number(balanceSlider.value);
-  balanceValue.value = labelBalance(balance);
-  scheduleBalanceUpdate();
-});
-
-balanceSlider.addEventListener("dblclick", () => {
-  balance = 0;
-  balanceSlider.value = 0;
-  balanceValue.value = labelBalance(balance);
-  scheduleBalanceUpdate();
-});
-
 async function refreshPresets(selected) {
-  const presets = await request("/api/presets");
-  presetList.replaceChildren(
-    ...presets.map((preset) => {
-      const option = document.createElement("option");
-      option.value = preset.name;
-      option.textContent = preset.name;
-      return option;
-    }),
+  presetItems = await request("/api/v1/presets");
+  if (selected !== undefined) selectedPreset = selected;
+  presetsControl?.setValue({ presets: presetItems, selected: selectedPreset });
+}
+
+async function runPresetAction(action) {
+  try {
+    await action();
+  } catch (error) {
+    showMessage(error.message, true);
+  }
+}
+
+async function savePreset(name) {
+  const result = await request("/api/v1/presets", {
+    method: "POST",
+    body: JSON.stringify({ name, bands }),
+  });
+  await refreshPresets(result.preset.name);
+  showMessage(`Saved “${result.preset.name}”`);
+}
+
+async function loadPreset(name) {
+  const result = await request(
+    `/api/v1/presets/${encodeURIComponent(name)}/load`,
+    { method: "POST" },
   );
-  if (selected) presetList.value = selected;
-  document.querySelector("#delete-preset").disabled =
-    presetList.value === "Flat";
+  applyTone(result.tone);
+  setEngineStatus(result.engine);
+  await refreshPresets(name);
+  showMessage(`Loaded “${name}”`);
+}
+
+async function exportPreset(name) {
+  const preset = await request(
+    `/api/v1/presets/${encodeURIComponent(name)}/export`,
+  );
+  const blob = new Blob([`${JSON.stringify(preset, null, 2)}\n`], {
+    type: "application/json",
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${preset.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+async function deletePreset(name) {
+  await request(`/api/v1/presets/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+  await refreshPresets(null);
+  showMessage(`Deleted “${name}”`);
+}
+
+async function importPreset(file) {
+  const result = await request("/api/v1/presets/import", {
+    method: "POST",
+    body: await file.text(),
+  });
+  await refreshPresets(result.preset.name);
+  showMessage(`Imported “${result.preset.name}”`);
 }
 
 async function initialize() {
   try {
     const [state] = await Promise.all([
-      request("/api/state"),
+      request("/api/v1/state"),
       initializeThemes(),
     ]);
-    bands = state.bands;
-    balance = state.balance;
-    balanceSlider.min = state.balance_range.min;
-    balanceSlider.max = state.balance_range.max;
-    balanceSlider.step = state.balance_range.step;
-    balanceSlider.value = balance;
-    balanceValue.value = labelBalance(balance);
-    renderBands(state.frequencies, state.range);
-    setEngineStatus(state.engine);
-    await refreshPresets();
-    connectMeters();
+    bands = state.tone.bands;
+    balance = state.tone.balance;
+    eqControl = controls.mount({
+      component: EQ_COMPONENT,
+      presentation: EQ_FADER_PRESENTATION,
+      root: equalizer,
+      options: { orientation: "responsive" },
+      context: {
+        value: bands,
+        frequencies: state.limits.eq.frequencies,
+        range: state.limits.eq,
+        labelFrequency,
+        labelValue: labelGain,
+        onInput(nextBands) {
+          bands = nextBands;
+          scheduleUpdate();
+        },
+      },
+    });
+    balanceControl = controls.mount({
+      component: BALANCE_COMPONENT,
+      presentation: BALANCE_SLIDER_PRESENTATION,
+      root: balanceRoot,
+      context: {
+        value: balance,
+        range: state.limits.balance,
+        labelValue: labelBalance,
+        onInput(nextBalance) {
+          balance = nextBalance;
+          scheduleBalanceUpdate();
+        },
+      },
+    });
+    metersControl = controls.mount({
+      component: METERS_COMPONENT,
+      presentation: LED_METERS_PRESENTATION,
+      root: metersRoot,
+      options: { releasePerFrame: 0.7 },
+      context: { levelPercent, formatLevel },
+    });
+    spectrumControl = controls.mount({
+      component: SPECTRUM_COMPONENT,
+      presentation: SPECTRUM_OVERLAY_PRESENTATION,
+      root: spectrumRoot,
+      context: {
+        bandCount: state.limits.eq.frequencies.length,
+        eqRoot: equalizer,
+        levelElements: eqControl.parts.levels,
+        levelPercent,
+      },
+    });
+    currentMetadata = state.metadata || {};
+    currentTransport = state.transport || {};
+    metadataControl = controls.mount({
+      component: METADATA_COMPONENT,
+      presentation: NOW_PLAYING_PRESENTATION,
+      root: metadataRoot,
+    });
+    metadataControl.setValue({
+      metadata: currentMetadata,
+      transport: currentTransport,
+    });
+    presetsControl = controls.mount({
+      component: PRESETS_COMPONENT,
+      presentation: PRESET_SELECTOR_PRESENTATION,
+      root: presetsRoot,
+      context: {
+        run: runPresetAction,
+        onSave: savePreset,
+        onLoad: loadPreset,
+        onExport: exportPreset,
+        onDelete: deletePreset,
+        onImport: importPreset,
+      },
+    });
+    setEngineStatus({
+      online: state.audio.engine === "running",
+      error: state.audio.engine === "offline" ? "CamillaDSP is unavailable" : null,
+    });
+    activePreset = state.tone.preset;
+    await refreshPresets(activePreset);
+    connectEvents();
   } catch (error) {
     showMessage(error.message, true);
   }
 }
 
-document.querySelector("#reset").addEventListener("click", async () => {
-  try {
-    const result = await request("/api/reset", { method: "POST" });
-    bands = result.bands;
-    updateSliders();
-    setEngineStatus(result.engine);
+document.querySelector("#reset").addEventListener("click", () => {
+  runPresetAction(async () => {
+    await loadPreset("Flat");
     showMessage("Back to flat");
-  } catch (error) {
-    showMessage(error.message, true);
-  }
-});
-
-document.querySelector("#save-preset").addEventListener("click", () => {
-  presetName.value = "";
-  saveDialog.showModal();
-  presetName.focus();
-});
-
-document.querySelector("#confirm-save").addEventListener("click", async (event) => {
-  event.preventDefault();
-  if (!presetName.reportValidity()) return;
-  try {
-    const preset = await request("/api/presets", {
-      method: "POST",
-      body: JSON.stringify({ name: presetName.value, bands }),
-    });
-    saveDialog.close();
-    await refreshPresets(preset.name);
-    showMessage(`Saved “${preset.name}”`);
-  } catch (error) {
-    showMessage(error.message, true);
-  }
-});
-
-document.querySelector("#load-preset").addEventListener("click", async () => {
-  try {
-    const result = await request(
-      `/api/presets/${encodeURIComponent(presetList.value)}/load`,
-      { method: "POST" },
-    );
-    bands = result.bands;
-    updateSliders();
-    setEngineStatus(result.engine);
-    showMessage(`Loaded “${presetList.value}”`);
-  } catch (error) {
-    showMessage(error.message, true);
-  }
-});
-
-document.querySelector("#delete-preset").addEventListener("click", async () => {
-  const name = presetList.value;
-  if (name === "Flat" || !confirm(`Delete “${name}”?`)) return;
-  try {
-    await request(`/api/presets/${encodeURIComponent(name)}`, {
-      method: "DELETE",
-    });
-    await refreshPresets();
-    showMessage(`Deleted “${name}”`);
-  } catch (error) {
-    showMessage(error.message, true);
-  }
-});
-
-presetList.addEventListener("change", () => {
-  document.querySelector("#delete-preset").disabled =
-    presetList.value === "Flat";
-});
-
-document.querySelector("#export-preset").addEventListener("click", async () => {
-  try {
-    const preset = await request(
-      `/api/presets/${encodeURIComponent(presetList.value)}/export`,
-    );
-    const blob = new Blob([`${JSON.stringify(preset, null, 2)}\n`], {
-      type: "application/json",
-    });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${preset.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  } catch (error) {
-    showMessage(error.message, true);
-  }
-});
-
-document.querySelector("#import-preset").addEventListener("change", async (event) => {
-  const [file] = event.target.files;
-  if (!file) return;
-  try {
-    const preset = await request("/api/presets/import", {
-      method: "POST",
-      body: await file.text(),
-    });
-    await refreshPresets(preset.name);
-    showMessage(`Imported “${preset.name}”`);
-  } catch (error) {
-    showMessage(error.message, true);
-  } finally {
-    event.target.value = "";
-  }
+  });
 });
 
 initialize();

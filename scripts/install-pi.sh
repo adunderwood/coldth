@@ -3,16 +3,23 @@ set -euo pipefail
 
 CAMILLA_VERSION="${CAMILLA_VERSION:-3.0.1}"
 WITH_ANALYZER=0
+ARTWORK_MODE="ask"
 SKIP_PACKAGES=0
 
 usage() {
   cat <<'EOF'
 Install Coldth on a dedicated Raspberry Pi.
 
-Usage: ./scripts/install-pi.sh [--with-analyzer] [--skip-packages]
+Usage: ./scripts/install-pi.sh [options]
 
   --with-analyzer  Enable the experimental ten-band FFT and ALSA fan-out.
+  --with-artwork   Request and display AirPlay album artwork.
+  --without-artwork
+                   Do not request AirPlay album artwork.
   --skip-packages  Do not run apt or download CamillaDSP.
+
+When neither artwork flag is supplied, an interactive installation asks.
+Non-interactive installation defaults to no artwork.
 
 Environment:
   CAMILLA_VERSION  CamillaDSP version to install when missing (default: 3.0.1).
@@ -24,12 +31,26 @@ EOF
 while (($#)); do
   case "$1" in
     --with-analyzer) WITH_ANALYZER=1 ;;
+    --with-artwork) ARTWORK_MODE="yes" ;;
+    --without-artwork) ARTWORK_MODE="no" ;;
     --skip-packages) SKIP_PACKAGES=1 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
   shift
 done
+
+if [[ "$ARTWORK_MODE" == "ask" ]]; then
+  if [[ -t 0 ]]; then
+    read -r -p "Enable album artwork from AirPlay senders? [y/N] " reply
+    case "$reply" in
+      y|Y|yes|YES|Yes) ARTWORK_MODE="yes" ;;
+      *) ARTWORK_MODE="no" ;;
+    esac
+  else
+    ARTWORK_MODE="no"
+  fi
+fi
 
 if [[ $EUID -eq 0 ]]; then
   echo "Run this installer as the account that owns the Coldth checkout, not as root." >&2
@@ -60,6 +81,7 @@ echo "Coldth repository: $REPO_DIR"
 echo "Service account:    $INSTALL_USER"
 echo "Playback device:    $PLAYBACK_DEVICE"
 echo "Analyzer:           $([[ $WITH_ANALYZER -eq 1 ]] && echo enabled || echo disabled)"
+echo "Album artwork:      $([[ "$ARTWORK_MODE" == "yes" ]] && echo enabled || echo disabled)"
 
 sudo -v
 
@@ -174,7 +196,7 @@ alsa = {
 
 metadata = {
     enabled = "yes";
-    include_cover_art = "no";
+    include_cover_art = "$ARTWORK_MODE";
     pipe_name = "/tmp/shairport-sync-metadata";
 };
 EOF
@@ -222,7 +244,6 @@ Environment=COLDTH_HOST=0.0.0.0
 Environment=COLDTH_PORT=8080
 Environment=COLDTH_CAMILLADSP_URL=ws://127.0.0.1:1234
 Environment=COLDTH_SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata
-Environment=COLDTH_SHAIRPORT_ARTWORK_AVAILABLE=false
 Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
 Environment=COLDTH_PLAYBACK_DEVICE=$PLAYBACK_DEVICE
 Environment=COLDTH_CAPTURE_FORMAT=S16LE
@@ -259,6 +280,24 @@ sudo systemctl restart camilladsp
 sleep 2
 sudo systemctl restart coldth
 sudo systemctl restart shairport-sync
+
+if [[ "$ARTWORK_MODE" == "yes" ]]; then
+  artwork_saved=0
+  for _ in {1..10}; do
+    if curl -fsS -X PUT \
+      -H "Content-Type: application/json" \
+      --data '{"metadata":true,"artwork":true}' \
+      http://127.0.0.1:8080/api/v1/settings/privacy >/dev/null; then
+      artwork_saved=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ $artwork_saved -eq 0 ]]; then
+    echo "Warning: Shairport artwork is enabled, but Coldth's artwork preference could not be saved." >&2
+    echo "Open /settings and enable 'Use album artwork' after installation." >&2
+  fi
+fi
 
 echo
 "$REPO_DIR/scripts/verify-pi.sh" || true
