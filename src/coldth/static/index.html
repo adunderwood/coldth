@@ -25,22 +25,31 @@
       </header>
 
       <div id="receiver-layout" class="receiver-layout">
-        <section class="meters-panel" data-layout-surface="levels" aria-labelledby="meters-title">
-          <div class="meter-display">
-            <div class="meter-title">
-              <p class="eyebrow">Output level</p>
-              <h2 id="meters-title">Stereo</h2>
-            </div>
-            <div class="stereo-meters">
-              <div id="stereo-meter-control" class="presentation-contents"></div>
-              <div id="balance-control" class="balance-control"></div>
-            </div>
-            <div id="spectrum-control" class="presentation-contents"></div>
-            <div id="metadata-control" hidden></div>
+        <section class="meters-panel receiver-surface" data-layout-surface="meters" aria-labelledby="meters-title">
+          <div class="surface-heading">
+            <p class="eyebrow">Output level</p>
+            <h2 id="meters-title">Stereo</h2>
           </div>
+          <div id="stereo-meter-control" class="stereo-meters"></div>
         </section>
 
-        <section class="eq-panel" data-layout-surface="tone" aria-labelledby="eq-title">
+        <section class="balance-panel receiver-surface" data-layout-surface="balance" aria-label="Stereo balance">
+          <div id="balance-control" class="balance-control"></div>
+        </section>
+
+        <section class="spectrum-panel receiver-surface" data-layout-surface="spectrum" aria-label="Spectrum analyzer">
+          <div id="spectrum-control"></div>
+        </section>
+
+        <section class="track-info-panel receiver-surface" data-layout-surface="track-info" aria-label="Now playing">
+          <div id="track-info-control"></div>
+        </section>
+
+        <section class="album-art-panel receiver-surface" data-layout-surface="album-art" aria-label="Album artwork">
+          <div id="album-art-control"></div>
+        </section>
+
+        <section class="eq-panel receiver-surface" data-layout-surface="tone" aria-labelledby="eq-title">
           <div class="section-heading">
             <div>
               <p class="eyebrow">Ten-band graphic EQ</p>
@@ -51,7 +60,7 @@
           <div id="equalizer" class="equalizer" aria-busy="true"></div>
         </section>
 
-        <section id="preset-component" class="preset-panel" data-layout-surface="presets" aria-labelledby="preset-title"></section>
+        <section id="preset-component" class="preset-panel receiver-surface" data-layout-surface="presets" aria-labelledby="preset-title"></section>
       </div>
       <p id="message" class="message" role="status" aria-live="polite"></p>
       <footer class="product-signature" aria-label="Coldth Raspberry Pi equalizer">

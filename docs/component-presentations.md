@@ -62,7 +62,8 @@ balance  → coldth.presentation/horizontal-slider@1
 stereo-meters → coldth.presentation/led-bar@1
 spectrum → coldth.presentation/ten-band-overlay@1
 tone-bank → coldth.presentation/fader-ladder@1
-metadata → coldth.presentation/now-playing-display@1
+track-info → coldth.presentation/now-playing-text@1
+album-art → coldth.presentation/album-artwork@1
 presets  → coldth.presentation/preset-selector@1
 ```
 
@@ -80,10 +81,16 @@ The presentations generate the same stable classes and accessibility labels
 used by the original receiver. Existing CSS themes and responsive layouts
 therefore continue to work without knowing about registry internals.
 
-Presentations mount inside application-owned receiver surfaces. Declarative
-theme layout controls the physical flow of the `levels`, `tone`, and `presets`
-surfaces; it does not move presentation-generated DOM across component
-boundaries or take ownership of the header and service status.
+Presentations mount inside application-owned receiver surfaces. Track
+information and album artwork are separate components observing the same
+canonical metadata state, so either can be placed or omitted independently.
+
+Declarative theme layout controls the physical flow of `meters`, `balance`,
+`spectrum`, `track-info`, `album-art`, `tone`, and `presets`. It does not move
+presentation-generated DOM across component boundaries or take ownership of
+the header and service status. Layouts may explicitly hide optional
+observational surfaces; omitting a surface from `flow` uses its safe fallback
+position instead.
 
 ## Testing
 

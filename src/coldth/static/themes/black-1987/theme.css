@@ -25,7 +25,11 @@ body {
 
 .eq-panel,
 .preset-panel,
-.meters-panel {
+.meters-panel,
+.balance-panel,
+.spectrum-panel,
+.track-info-panel,
+.album-art-panel {
   border-color: #3c3b34;
   background:
     linear-gradient(180deg, #121414 0, #090b0b 100%);
@@ -34,7 +38,11 @@ body {
     0 28px 90px #000b;
 }
 
-.meter-display {
+.meters-panel,
+.balance-panel,
+.spectrum-panel,
+.track-info-panel,
+.album-art-panel {
   border-color: #202922;
   background:
     radial-gradient(circle at 50% 0, #143422 0, transparent 56%),

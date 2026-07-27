@@ -10,5 +10,13 @@
       }
     }
   ],
-  "flow": ["levels", "tone", "presets"]
+  "flow": [
+    "meters",
+    "balance",
+    "spectrum",
+    "track-info",
+    "album-art",
+    "tone",
+    "presets"
+  ]
 }

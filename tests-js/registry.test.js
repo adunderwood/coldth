@@ -3,20 +3,22 @@ import assert from "node:assert/strict";
 
 import { ControlRegistry, RegistryError } from "../src/coldth/static/ui/registry.js";
 import {
+  ALBUM_ARTWORK_PRESENTATION,
+  ALBUM_ART_COMPONENT,
   BALANCE_COMPONENT,
   BALANCE_SLIDER_PRESENTATION,
   EQ_COMPONENT,
   EQ_FADER_PRESENTATION,
   FADER_LADDER_PRESENTATION,
   LED_METERS_PRESENTATION,
-  METADATA_COMPONENT,
   METERS_COMPONENT,
-  NOW_PLAYING_PRESENTATION,
+  NOW_PLAYING_TEXT_PRESENTATION,
   PRESETS_COMPONENT,
   PRESET_SELECTOR_PRESENTATION,
   SPECTRUM_COMPONENT,
   SPECTRUM_OVERLAY_PRESENTATION,
   TONE_BANK_COMPONENT,
+  TRACK_INFO_COMPONENT,
   registerBuiltins,
 } from "../src/coldth/static/ui/builtins.js";
 
@@ -38,9 +40,13 @@ test("built-in presentations resolve against semantic components", () => {
     TONE_BANK_COMPONENT,
     FADER_LADDER_PRESENTATION,
   );
-  const metadata = registry.resolve(
-    METADATA_COMPONENT,
-    NOW_PLAYING_PRESENTATION,
+  const trackInfo = registry.resolve(
+    TRACK_INFO_COMPONENT,
+    NOW_PLAYING_TEXT_PRESENTATION,
+  );
+  const albumArt = registry.resolve(
+    ALBUM_ART_COMPONENT,
+    ALBUM_ARTWORK_PRESENTATION,
   );
   const presets = registry.resolve(
     PRESETS_COMPONENT,
@@ -57,7 +63,8 @@ test("built-in presentations resolve against semantic components", () => {
     orientation: "responsive",
     segments: 24,
   });
-  assert.equal(metadata.component.valueType, "metadata-state");
+  assert.equal(trackInfo.component.valueType, "metadata-state");
+  assert.equal(albumArt.component.valueType, "artwork-state");
   assert.equal(presets.component.valueType, "preset-collection");
 });
 

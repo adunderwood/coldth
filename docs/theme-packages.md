@@ -104,8 +104,8 @@ stereo-meters
 spectrum
 tone-bank
 presets
-metadata
-transport
+track-info
+album-art
 ```
 
 A presentation is a trusted, versioned Coldth implementation of a component's
@@ -307,30 +307,46 @@ Layouts arrange components in named regions:
       }
     }
   ],
-  "flow": ["levels", "tone", "presets"]
+  "flow": [
+    "meters",
+    "balance",
+    "spectrum",
+    "track-info",
+    "album-art",
+    "tone",
+    "presets"
+  ],
+  "hidden": ["spectrum"]
 }
 ```
 
 The layout engine creates the elements. Theme CSS styles stable component,
 region, state, and part selectors.
 
-`flow` physically orders Coldth's three stable receiver surfaces:
+`flow` physically orders Coldth's stable receiver surfaces:
 
 ```text
-levels   stereo meters, balance, analyzer status, and metadata
-tone     EQ or composite tone-bank presentation
-presets  preset controls
+meters      stereo RMS and peak measurements
+balance     stereo balance control
+spectrum    ten-band spectrum measurement
+track-info  title, artist, album, and transport state
+album-art   current artwork
+tone        EQ or composite tone-bank presentation
+presets     preset controls
 ```
 
 A flow may list only the surfaces it wants to prioritize. Coldth appends any
 omitted surfaces in the safe default order, so a theme cannot accidentally
-remove a control. Themes may use `[data-layout-surface="levels"]`,
-`[data-layout-surface="tone"]`, and `[data-layout-surface="presets"]` for
-placement and styling. The header, engine status, and message region remain
+remove a control or display. The optional `hidden` array deliberately
+suppresses only observational surfaces: `meters`, `spectrum`, `track-info`,
+and `album-art`. Interactive `balance`, `tone`, and `presets` cannot be hidden.
+
+Themes may style any surface through its `data-layout-surface` value. The
+header, engine status, message region, and product signature remain
 application-owned.
 
-When inheriting, a child-supplied `flow` replaces its parent's flow. If the
-child omits it, the parent flow remains active.
+When inheriting, child-supplied `flow` or `hidden` values replace their parent
+values independently. An omitted field continues to inherit.
 
 ## Semantic tokens
 

@@ -3,7 +3,8 @@ export const BALANCE_COMPONENT = "balance";
 export const METERS_COMPONENT = "stereo-meters";
 export const SPECTRUM_COMPONENT = "spectrum";
 export const TONE_BANK_COMPONENT = "tone-bank";
-export const METADATA_COMPONENT = "metadata";
+export const TRACK_INFO_COMPONENT = "track-info";
+export const ALBUM_ART_COMPONENT = "album-art";
 export const PRESETS_COMPONENT = "presets";
 export const EQ_FADER_PRESENTATION =
   "coldth.presentation/vertical-fader@1";
@@ -14,8 +15,10 @@ export const SPECTRUM_OVERLAY_PRESENTATION =
   "coldth.presentation/ten-band-overlay@1";
 export const FADER_LADDER_PRESENTATION =
   "coldth.presentation/fader-ladder@1";
-export const NOW_PLAYING_PRESENTATION =
-  "coldth.presentation/now-playing-display@1";
+export const NOW_PLAYING_TEXT_PRESENTATION =
+  "coldth.presentation/now-playing-text@1";
+export const ALBUM_ARTWORK_PRESENTATION =
+  "coldth.presentation/album-artwork@1";
 export const PRESET_SELECTOR_PRESENTATION =
   "coldth.presentation/preset-selector@1";
 
@@ -323,42 +326,69 @@ function mountFaderLadder({ root, options, context }) {
   };
 }
 
-function mountNowPlaying({ root }) {
-  root.dataset.component = METADATA_COMPONENT;
-  root.dataset.presentation = NOW_PLAYING_PRESENTATION;
-  root.className = "now-playing";
-  root.hidden = true;
+function mountNowPlayingText({ root, context }) {
+  root.dataset.component = TRACK_INFO_COMPONENT;
+  root.dataset.presentation = NOW_PLAYING_TEXT_PRESENTATION;
+  root.className = "track-info";
   root.replaceChildren();
-  const artwork = document.createElement("img");
-  artwork.alt = "";
-  const detail = document.createElement("div");
   const state = document.createElement("span");
   const title = document.createElement("strong");
   const byline = document.createElement("small");
-  detail.append(state, title, byline);
-  root.append(artwork, detail);
+  root.append(state, title, byline);
 
   return {
     setValue(value = {}) {
       const metadata = value.metadata || {};
       const transport = value.transport || {};
       const available = Boolean(metadata.title || metadata.artist || metadata.album);
-      root.hidden = !available;
+      context.onAvailability(available);
       if (!available) return;
       title.textContent = metadata.title || "Unknown track";
       byline.textContent = [metadata.artist, metadata.album]
         .filter(Boolean)
         .join(" · ");
       state.textContent = transport.state === "playing" ? "Now playing" : "AirPlay";
-      if (metadata.artwork) {
-        artwork.src = `${metadata.artwork}?t=${Date.now()}`;
-        artwork.hidden = false;
-      } else {
+    },
+    dispose() {
+      context.onAvailability(false);
+      root.replaceChildren();
+    },
+  };
+}
+
+function mountAlbumArtwork({ root, context }) {
+  root.dataset.component = ALBUM_ART_COMPONENT;
+  root.dataset.presentation = ALBUM_ARTWORK_PRESENTATION;
+  root.className = "album-art";
+  root.replaceChildren();
+  const artwork = document.createElement("img");
+  artwork.alt = "";
+  root.append(artwork);
+  let fingerprint = "";
+
+  return {
+    setValue(value = {}) {
+      const metadata = value.metadata || {};
+      const available = Boolean(metadata.artwork);
+      context.onAvailability(available);
+      if (!available) {
         artwork.removeAttribute("src");
-        artwork.hidden = true;
+        fingerprint = "";
+        return;
+      }
+      const nextFingerprint = [
+        metadata.artwork,
+        metadata.artist,
+        metadata.album,
+        metadata.title,
+      ].join("\n");
+      if (nextFingerprint !== fingerprint) {
+        fingerprint = nextFingerprint;
+        artwork.src = `${metadata.artwork}?t=${Date.now()}`;
       }
     },
     dispose() {
+      context.onAvailability(false);
       root.replaceChildren();
     },
   };
@@ -536,8 +566,13 @@ export function registerBuiltins(registry) {
     capability: "eq+spectrum",
   });
   registry.registerComponent({
-    id: METADATA_COMPONENT,
+    id: TRACK_INFO_COMPONENT,
     valueType: "metadata-state",
+    capability: "metadata",
+  });
+  registry.registerComponent({
+    id: ALBUM_ART_COMPONENT,
+    valueType: "artwork-state",
     capability: "metadata",
   });
   registry.registerComponent({
@@ -617,11 +652,18 @@ export function registerBuiltins(registry) {
     mount: mountFaderLadder,
   });
   registry.registerPresentation({
-    id: NOW_PLAYING_PRESENTATION,
+    id: NOW_PLAYING_TEXT_PRESENTATION,
     valueTypes: ["metadata-state"],
-    components: [METADATA_COMPONENT],
+    components: [TRACK_INFO_COMPONENT],
     optionsSchema: { properties: {} },
-    mount: mountNowPlaying,
+    mount: mountNowPlayingText,
+  });
+  registry.registerPresentation({
+    id: ALBUM_ARTWORK_PRESENTATION,
+    valueTypes: ["artwork-state"],
+    components: [ALBUM_ART_COMPONENT],
+    optionsSchema: { properties: {} },
+    mount: mountAlbumArtwork,
   });
   registry.registerPresentation({
     id: PRESET_SELECTOR_PRESENTATION,

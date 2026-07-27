@@ -21,7 +21,16 @@ MAX_FILES = 128
 THEME_ID = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)+$")
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 REGION_ID = re.compile(r"^[a-z][a-z0-9-]*$")
-SURFACE_IDS = {"levels", "tone", "presets"}
+SURFACE_IDS = {
+    "meters",
+    "balance",
+    "spectrum",
+    "track-info",
+    "album-art",
+    "tone",
+    "presets",
+}
+HIDEABLE_SURFACE_IDS = {"meters", "spectrum", "track-info", "album-art"}
 
 COMPONENT_PRESENTATIONS = {
     "eq": {"coldth.presentation/vertical-fader@1"},
@@ -29,7 +38,8 @@ COMPONENT_PRESENTATIONS = {
     "stereo-meters": {"coldth.presentation/led-bar@1"},
     "spectrum": {"coldth.presentation/ten-band-overlay@1"},
     "tone-bank": {"coldth.presentation/fader-ladder@1"},
-    "metadata": {"coldth.presentation/now-playing-display@1"},
+    "track-info": {"coldth.presentation/now-playing-text@1"},
+    "album-art": {"coldth.presentation/album-artwork@1"},
     "presets": {"coldth.presentation/preset-selector@1"},
 }
 
@@ -251,9 +261,11 @@ def validate_layout(value: Any) -> dict[str, Any]:
     if (
         not isinstance(value, dict)
         or "regions" not in value
-        or set(value) - {"regions", "flow"}
+        or set(value) - {"regions", "flow", "hidden"}
     ):
-        raise ThemePackageError("layout must contain regions and optional flow")
+        raise ThemePackageError(
+            "layout must contain regions and optional flow and hidden"
+        )
     regions = value["regions"]
     if not isinstance(regions, list) or not regions:
         raise ThemePackageError("layout regions must be a non-empty array")
@@ -307,6 +319,20 @@ def validate_layout(value: Any) -> dict[str, Any]:
                 f"Unknown layout surface: {sorted(unknown_surfaces)[0]}"
             )
         layout["flow"] = flow
+    if "hidden" in value:
+        hidden = value["hidden"]
+        if (
+            not isinstance(hidden, list)
+            or not all(isinstance(surface, str) for surface in hidden)
+            or len(hidden) != len(set(hidden))
+        ):
+            raise ThemePackageError("layout hidden must be a unique text array")
+        unknown_hidden = set(hidden) - HIDEABLE_SURFACE_IDS
+        if unknown_hidden:
+            raise ThemePackageError(
+                f"Layout surface cannot be hidden: {sorted(unknown_hidden)[0]}"
+            )
+        layout["hidden"] = hidden
     return layout
 
 
@@ -317,6 +343,8 @@ def _merge_layout(
         result = {"regions": [dict(region) for region in child["regions"]]}
         if "flow" in child:
             result["flow"] = list(child["flow"])
+        if "hidden" in child:
+            result["hidden"] = list(child["hidden"])
         return result
     regions = [dict(region) for region in parent["regions"]]
     positions = {region["id"]: index for index, region in enumerate(regions)}
@@ -331,6 +359,9 @@ def _merge_layout(
     flow = child.get("flow", parent.get("flow"))
     if flow is not None:
         result["flow"] = list(flow)
+    hidden = child.get("hidden", parent.get("hidden"))
+    if hidden is not None:
+        result["hidden"] = list(hidden)
     return result
 
 

@@ -278,6 +278,19 @@ def test_layout_rejects_incompatible_presentations_and_options():
                 "flow": ["tone", "tone"],
             }
         )
+    with pytest.raises(ThemePackageError, match="cannot be hidden"):
+        validate_layout(
+            {
+                "regions": [
+                    {
+                        "id": "tone",
+                        "component": "eq",
+                        "presentation": "coldth.presentation/vertical-fader@1",
+                    }
+                ],
+                "hidden": ["balance"],
+            }
+        )
     with pytest.raises(ThemePackageError, match="Unknown option"):
         validate_layout(
             {
@@ -368,7 +381,8 @@ def test_theme_inheritance_resolves_css_tokens_and_layout_regions(tmp_path):
                 "options": {"segments": 18},
             }
         ],
-        "flow": ["tone", "levels", "presets"],
+        "flow": ["tone", "meters", "balance", "presets"],
+        "hidden": ["spectrum"],
     }
 
     registry.install(
@@ -397,9 +411,11 @@ def test_theme_inheritance_resolves_css_tokens_and_layout_regions(tmp_path):
     )
     assert descriptor["layouts"]["landscape"]["flow"] == [
         "tone",
-        "levels",
+        "meters",
+        "balance",
         "presets",
     ]
+    assert descriptor["layouts"]["landscape"]["hidden"] == ["spectrum"]
 
 
 def test_theme_inheritance_rejects_missing_parent(tmp_path):

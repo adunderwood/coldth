@@ -1,19 +1,21 @@
 import { ControlRegistry } from "./ui/registry.js";
 import {
+  ALBUM_ARTWORK_PRESENTATION,
+  ALBUM_ART_COMPONENT,
   BALANCE_COMPONENT,
   BALANCE_SLIDER_PRESENTATION,
   EQ_COMPONENT,
   EQ_FADER_PRESENTATION,
   FADER_LADDER_PRESENTATION,
   LED_METERS_PRESENTATION,
-  METADATA_COMPONENT,
   METERS_COMPONENT,
-  NOW_PLAYING_PRESENTATION,
+  NOW_PLAYING_TEXT_PRESENTATION,
   PRESETS_COMPONENT,
   PRESET_SELECTOR_PRESENTATION,
   SPECTRUM_COMPONENT,
   SPECTRUM_OVERLAY_PRESENTATION,
   TONE_BANK_COMPONENT,
+  TRACK_INFO_COMPONENT,
   registerBuiltins,
 } from "./ui/builtins.js";
 
@@ -25,7 +27,8 @@ const themeStylesheet = document.querySelector("#theme-stylesheet");
 const balanceRoot = document.querySelector("#balance-control");
 const metersRoot = document.querySelector("#stereo-meter-control");
 const spectrumRoot = document.querySelector("#spectrum-control");
-const metadataRoot = document.querySelector("#metadata-control");
+const trackInfoRoot = document.querySelector("#track-info-control");
+const albumArtRoot = document.querySelector("#album-art-control");
 const presetsRoot = document.querySelector("#preset-component");
 const receiverLayout = document.querySelector("#receiver-layout");
 const layoutSurfaces = new Map(
@@ -50,7 +53,8 @@ let eqControl;
 let balanceControl;
 let metersControl;
 let spectrumControl;
-let metadataControl;
+let trackInfoControl;
+let albumArtControl;
 let presetsControl;
 let toneBankControl;
 const controls = new ControlRegistry();
@@ -89,10 +93,16 @@ const DEFAULT_REGIONS = {
     presentation: FADER_LADDER_PRESENTATION,
     options: { orientation: "responsive", segments: 24 },
   },
-  [METADATA_COMPONENT]: {
-    id: "now-playing",
-    component: METADATA_COMPONENT,
-    presentation: NOW_PLAYING_PRESENTATION,
+  [TRACK_INFO_COMPONENT]: {
+    id: "track-info",
+    component: TRACK_INFO_COMPONENT,
+    presentation: NOW_PLAYING_TEXT_PRESENTATION,
+    options: {},
+  },
+  [ALBUM_ART_COMPONENT]: {
+    id: "album-art",
+    component: ALBUM_ART_COMPONENT,
+    presentation: ALBUM_ARTWORK_PRESENTATION,
     options: {},
   },
   [PRESETS_COMPONENT]: {
@@ -113,7 +123,17 @@ const TOKEN_PROPERTIES = {
   "receiver.meter.hot": "--receiver-meter-hot",
   "receiver.accent": "--receiver-accent",
 };
-const DEFAULT_SURFACE_FLOW = ["levels", "tone", "presets"];
+const DEFAULT_SURFACE_FLOW = [
+  "meters",
+  "balance",
+  "spectrum",
+  "track-info",
+  "album-art",
+  "tone",
+  "presets",
+];
+let layoutHiddenSurfaces = new Set();
+const surfaceAvailability = new Map();
 
 const labelFrequency = (frequency) =>
   frequency >= 1000 ? `${frequency / 1000}k` : `${frequency}`;
@@ -238,26 +258,17 @@ function connectEvents() {
       currentMetadata = payload.data.metadata || {};
       currentTransport = payload.data.transport || {};
       applyTone(payload.data.tone);
-      metadataControl?.setValue({
-        metadata: currentMetadata,
-        transport: currentTransport,
-      });
+      updateMetadataControls();
     } else if (payload.type === "meter.frame") {
       metersControl?.setValue(payload.data);
       spectrumControl?.setValue(payload.data.spectrum);
       toneBankControl?.setValue({ spectrum: payload.data.spectrum });
     } else if (payload.type === "metadata.changed") {
       currentMetadata = payload.data;
-      metadataControl?.setValue({
-        metadata: currentMetadata,
-        transport: currentTransport,
-      });
+      updateMetadataControls();
     } else if (payload.type === "transport.changed") {
       currentTransport = payload.data;
-      metadataControl?.setValue({
-        metadata: currentMetadata,
-        transport: currentTransport,
-      });
+      updateMetadataControls();
     } else if (payload.type === "tone.changed") {
       applyTone(payload.data);
     } else if (payload.type === "preset.loaded") {
@@ -414,23 +425,49 @@ function activeLayout(descriptor) {
 }
 
 function applySurfaceFlow(descriptor) {
-  const requested = activeLayout(descriptor)?.flow || [];
+  const layout = activeLayout(descriptor);
+  const requested = layout?.flow || [];
   const flow = [
     ...requested,
     ...DEFAULT_SURFACE_FLOW.filter((surface) => !requested.includes(surface)),
   ];
+  layoutHiddenSurfaces = new Set(layout?.hidden || []);
   for (const surface of flow) {
     const element = layoutSurfaces.get(surface);
     if (element) receiverLayout.append(element);
   }
   receiverLayout.dataset.flow = flow.join(" ");
+  syncSurfaceVisibility();
+}
+
+function syncSurfaceVisibility() {
+  for (const [surface, element] of layoutSurfaces) {
+    element.hidden =
+      layoutHiddenSurfaces.has(surface) ||
+      surfaceAvailability.get(surface) === false;
+  }
+}
+
+function setSurfaceAvailable(surface, available) {
+  surfaceAvailability.set(surface, available);
+  syncSurfaceVisibility();
+}
+
+function updateMetadataControls() {
+  const value = {
+    metadata: currentMetadata,
+    transport: currentTransport,
+  };
+  trackInfoControl?.setValue(value);
+  albumArtControl?.setValue(value);
 }
 
 function disposeControls() {
   for (const control of [
     spectrumControl,
     presetsControl,
-    metadataControl,
+    trackInfoControl,
+    albumArtControl,
     metersControl,
     balanceControl,
     eqControl,
@@ -454,7 +491,8 @@ function mountControls(state, descriptor) {
     [BALANCE_COMPONENT, balanceRoot],
     [METERS_COMPONENT, metersRoot],
     [SPECTRUM_COMPONENT, spectrumRoot],
-    [METADATA_COMPONENT, metadataRoot],
+    [TRACK_INFO_COMPONENT, trackInfoRoot],
+    [ALBUM_ART_COMPONENT, albumArtRoot],
     [PRESETS_COMPONENT, presetsRoot],
   ]) {
     root.dataset.themeRegion = regions[component].id;
@@ -463,7 +501,7 @@ function mountControls(state, descriptor) {
   eqControl = null;
   spectrumControl = null;
   toneBankControl = null;
-  spectrumRoot.hidden = usesToneBank;
+  setSurfaceAvailable("spectrum", !usesToneBank);
   if (usesToneBank) {
     equalizer.dataset.themeRegion = regions[TONE_BANK_COMPONENT].id;
     toneBankControl = controls.mount({
@@ -518,7 +556,6 @@ function mountControls(state, descriptor) {
     context: { levelPercent, formatLevel },
   });
   if (!usesToneBank) {
-    spectrumRoot.hidden = false;
     spectrumControl = controls.mount({
       ...regions[SPECTRUM_COMPONENT],
       root: spectrumRoot,
@@ -530,14 +567,25 @@ function mountControls(state, descriptor) {
       },
     });
   }
-  metadataControl = controls.mount({
-    ...regions[METADATA_COMPONENT],
-    root: metadataRoot,
+  trackInfoControl = controls.mount({
+    ...regions[TRACK_INFO_COMPONENT],
+    root: trackInfoRoot,
+    context: {
+      onAvailability(available) {
+        setSurfaceAvailable("track-info", available);
+      },
+    },
   });
-  metadataControl.setValue({
-    metadata: currentMetadata,
-    transport: currentTransport,
+  albumArtControl = controls.mount({
+    ...regions[ALBUM_ART_COMPONENT],
+    root: albumArtRoot,
+    context: {
+      onAvailability(available) {
+        setSurfaceAvailable("album-art", available);
+      },
+    },
   });
+  updateMetadataControls();
   presetsControl = controls.mount({
     ...regions[PRESETS_COMPONENT],
     root: presetsRoot,

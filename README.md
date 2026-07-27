@@ -70,14 +70,18 @@ For installation, start with the complete
 [optional ten-band analyzer](docs/analyzer.md) for the experimental ALSA
 fan-out setup.
 
-The versioned public contract is designed in
-[Coldth API v1](docs/api-v1.md). It treats the bundled web receiver as one
-client of canonical receiver state and deliberately keeps DSP topology private.
+The current development contract lives in the v1 namespace and is documented
+in [Coldth API v1](docs/api-v1.md). It remains unstable until Coldth explicitly
+declares it frozen. It treats the bundled web receiver as one client of
+canonical receiver state and deliberately keeps DSP topology private.
 The declarative `.coldth-theme` package, layout, inheritance, and control
 motion model are defined in [theme packages](docs/theme-packages.md).
-Implementation status and ordering are tracked in the
-[roadmap](docs/roadmap.md). The future sandboxed visualization platform is
-described in [visualizer plugins](docs/visualizer-plugins.md).
+Current implementation order is tracked in the
+[receiver flexibility roadmap](docs/roadmap.md); the completed architectural
+sequence is preserved in the
+[foundation roadmap](docs/roadmap-foundation.md). The future sandboxed
+visualization platform is described in
+[visualizer plugins](docs/visualizer-plugins.md).
 The current trusted browser control contract is documented in
 [component and presentation registry](docs/component-presentations.md).
 Declarative `.coldth-theme` ZIP packages can be installed from `/settings`;
