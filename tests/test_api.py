@@ -310,6 +310,10 @@ def test_v1_theme_package_installation_and_event(tmp_path):
         assert event["data"]["theme"]["id"] == "com.example.blue"
         themes = client.get("/api/v1/themes").json()
         assert "com.example.blue" in {theme["id"] for theme in themes}
+        descriptor = client.get("/api/v1/themes/com.example.blue")
+        assert descriptor.status_code == 200
+        assert descriptor.json()["apiVersion"] == 1
+        assert descriptor.json()["tokens"] == {}
         asset = client.get(
             "/api/v1/themes/com.example.blue/assets/theme.css"
         )

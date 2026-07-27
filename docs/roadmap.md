@@ -60,9 +60,10 @@ Themes remain data and contain no JavaScript or arbitrary HTML.
 
 The secure ZIP loader, persistent theme store, manifest and layout validation,
 built-in presentation compatibility checks, constrained asset serving,
-atomic first install, API endpoint, and settings-page installer are
-implemented. Inheritance, semantic-token application, declarative layout
-activation, version replacement, rollback, and uninstall remain.
+atomic first install, API endpoints, settings-page installer, semantic-token
+application, orientation-aware layout selection, presentation options, and
+component-level fallback are implemented. Inheritance, physical region
+reordering, version replacement, rollback, and uninstall remain.
 
 ### 6. Third-party presentation plugins — intentionally deferred
 

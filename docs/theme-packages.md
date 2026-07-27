@@ -2,11 +2,12 @@
 
 ## Implementation status
 
-The first package-loader slice is implemented. Coldth accepts raw
+The package-loader and first activation slice are implemented. Coldth accepts raw
 `.coldth-theme` ZIP archives at `POST /api/v1/themes/install`, validates the
 complete archive in a staging directory, and atomically installs it under the
 persistent data directory. Installed packages appear in `GET /api/v1/themes`
-and can be installed from the settings page.
+and can be installed from the settings page. `GET /api/v1/themes/{id}` returns
+the effective descriptor consumed by receiver clients.
 
 Manifest, CSS, asset, semantic-token, layout, component, presentation, and
 presentation-option validation are active. Unsafe paths, symlinks, encrypted
@@ -16,6 +17,12 @@ unknown API versions, and reserved identifiers are rejected.
 Inheritance is intentionally rejected in this loader slice. Parent CSS,
 tokens, and region replacement must be implemented as one activation feature;
 Coldth will not silently install a partially inherited theme.
+
+The bundled receiver applies all eight v1 semantic tokens and selects the
+matching `portrait` or `landscape` layout. Layout regions may choose and
+configure registered built-in presentations. Components omitted from a layout
+continue to use Coldth's default presentation, so a deliberately small package
+remains usable.
 
 ## Boundary
 
@@ -349,6 +356,15 @@ curl --fail-with-body \
 Coldth returns `201` only after complete validation and atomic installation.
 An existing theme identifier returns `409`; replacement and uninstall are
 deliberately deferred until version activation and rollback are designed.
+
+The descriptor endpoint returns the validated data used for activation:
+
+```text
+GET /api/v1/themes/{id}
+```
+
+It includes the list-entry fields plus `apiVersion`, `tokens`, and parsed
+`layouts`. It never returns package paths or unvalidated manifest content.
 
 ## Architectural rule
 

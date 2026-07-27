@@ -389,6 +389,44 @@ class ThemeRegistry:
             key=lambda theme: (theme["name"].casefold(), theme["id"]),
         )
 
+    def descriptor(self, theme_id: str) -> dict[str, Any]:
+        summary = next((theme for theme in self.list() if theme["id"] == theme_id), None)
+        if summary is None:
+            raise FileNotFoundError(theme_id)
+
+        if summary["builtin"]:
+            manifest_path = self.builtin_root / theme_id / "theme.json"
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                raise FileNotFoundError(theme_id) from error
+            tokens = _validate_tokens(manifest.get("tokens"))
+            layouts: dict[str, dict[str, Any]] = {}
+        else:
+            if self.installed_root is None:
+                raise FileNotFoundError(theme_id)
+            root = self.installed_root / theme_id
+            try:
+                manifest = validate_manifest(
+                    json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+                )
+                layouts = {
+                    name: validate_layout(
+                        json.loads((root / path).read_text(encoding="utf-8"))
+                    )
+                    for name, path in manifest["layouts"].items()
+                }
+            except (OSError, json.JSONDecodeError, ThemePackageError) as error:
+                raise FileNotFoundError(theme_id) from error
+            tokens = manifest["tokens"]
+
+        return {
+            **summary,
+            "apiVersion": THEME_API_VERSION,
+            "tokens": tokens,
+            "layouts": layouts,
+        }
+
     def install(self, archive: bytes) -> dict[str, Any]:
         if self.installed_root is None:
             raise ThemePackageError("Theme installation is not configured")

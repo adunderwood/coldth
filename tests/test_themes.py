@@ -89,6 +89,44 @@ def test_theme_package_installs_atomically_and_serves_assets(tmp_path):
         registry.install(theme_archive())
 
 
+def test_descriptor_exposes_validated_tokens_and_layouts(tmp_path):
+    builtins = tmp_path / "builtins"
+    installed = tmp_path / "installed"
+    builtins.mkdir()
+    registry = ThemeRegistry(builtins, installed)
+    manifest = {
+        "id": "com.example.magenta",
+        "name": "Magenta",
+        "version": "1.0.0",
+        "apiVersion": 1,
+        "styles": "theme.css",
+        "tokens": {"receiver.accent": "#ff00ff"},
+        "layouts": {"portrait": "layouts/portrait.json"},
+    }
+    layout = {
+        "regions": [
+            {
+                "id": "tone",
+                "component": "eq",
+                "presentation": "coldth.presentation/vertical-fader@1",
+                "options": {"orientation": "horizontal"},
+            }
+        ]
+    }
+    registry.install(
+        theme_archive(
+            manifest=manifest,
+            extra={"layouts/portrait.json": json.dumps(layout)},
+        )
+    )
+
+    descriptor = registry.descriptor("com.example.magenta")
+
+    assert descriptor["apiVersion"] == 1
+    assert descriptor["tokens"] == {"receiver.accent": "#ff00ff"}
+    assert descriptor["layouts"]["portrait"] == layout
+
+
 @pytest.mark.parametrize(
     "name",
     ("../escape.css", "/absolute.css", r"assets\windows.css"),

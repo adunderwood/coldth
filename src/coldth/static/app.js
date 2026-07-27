@@ -45,6 +45,58 @@ let metadataControl;
 let presetsControl;
 const controls = new ControlRegistry();
 registerBuiltins(controls);
+let currentState;
+let activeTheme;
+
+const DEFAULT_REGIONS = {
+  [EQ_COMPONENT]: {
+    id: "tone",
+    component: EQ_COMPONENT,
+    presentation: EQ_FADER_PRESENTATION,
+    options: { orientation: "responsive" },
+  },
+  [BALANCE_COMPONENT]: {
+    id: "balance",
+    component: BALANCE_COMPONENT,
+    presentation: BALANCE_SLIDER_PRESENTATION,
+    options: {},
+  },
+  [METERS_COMPONENT]: {
+    id: "meters",
+    component: METERS_COMPONENT,
+    presentation: LED_METERS_PRESENTATION,
+    options: { releasePerFrame: 0.7 },
+  },
+  [SPECTRUM_COMPONENT]: {
+    id: "spectrum",
+    component: SPECTRUM_COMPONENT,
+    presentation: SPECTRUM_OVERLAY_PRESENTATION,
+    options: {},
+  },
+  [METADATA_COMPONENT]: {
+    id: "now-playing",
+    component: METADATA_COMPONENT,
+    presentation: NOW_PLAYING_PRESENTATION,
+    options: {},
+  },
+  [PRESETS_COMPONENT]: {
+    id: "presets",
+    component: PRESETS_COMPONENT,
+    presentation: PRESET_SELECTOR_PRESENTATION,
+    options: {},
+  },
+};
+
+const TOKEN_PROPERTIES = {
+  "receiver.faceplate": "--receiver-faceplate",
+  "receiver.panel": "--receiver-panel",
+  "receiver.glass": "--receiver-glass",
+  "receiver.legend": "--receiver-legend",
+  "receiver.led": "--receiver-led",
+  "receiver.meter.normal": "--receiver-meter-normal",
+  "receiver.meter.hot": "--receiver-meter-hot",
+  "receiver.accent": "--receiver-accent",
+};
 
 const labelFrequency = (frequency) =>
   frequency >= 1000 ? `${frequency / 1000}k` : `${frequency}`;
@@ -75,18 +127,41 @@ async function initializeThemes() {
   themeList.value = themes.some((theme) => theme.id === saved)
     ? saved
     : "original-yellow";
-  applyTheme();
+  return loadTheme(themeList.value);
 }
 
-function applyTheme() {
+function applyThemeDescriptor(descriptor) {
   const option = themeList.selectedOptions[0];
-  if (!option) return;
-  themeStylesheet.href = option.dataset.stylesheet;
-  document.documentElement.dataset.theme = option.value;
-  localStorage.setItem("coldth-theme", option.value);
+  if (!option || descriptor.id !== option.value) return;
+  themeStylesheet.href = descriptor.stylesheet;
+  document.documentElement.dataset.theme = descriptor.id;
+  for (const property of Object.values(TOKEN_PROPERTIES)) {
+    document.documentElement.style.removeProperty(property);
+  }
+  for (const [token, value] of Object.entries(descriptor.tokens || {})) {
+    const property = TOKEN_PROPERTIES[token];
+    if (property) document.documentElement.style.setProperty(property, value);
+  }
+  localStorage.setItem("coldth-theme", descriptor.id);
+  activeTheme = descriptor;
 }
 
-themeList.addEventListener("change", applyTheme);
+async function loadTheme(themeId) {
+  const descriptor = await request(
+    `/api/v1/themes/${encodeURIComponent(themeId)}`,
+  );
+  applyThemeDescriptor(descriptor);
+  return descriptor;
+}
+
+themeList.addEventListener("change", async () => {
+  try {
+    const descriptor = await loadTheme(themeList.value);
+    if (currentState) mountControls(currentState, descriptor);
+  } catch (error) {
+    showMessage(`Could not activate theme: ${error.message}`, true);
+  }
+});
 
 function setEngineStatus(engine) {
   engineStatus.classList.toggle("online", engine.online);
@@ -291,87 +366,123 @@ async function importPreset(file) {
   showMessage(`Imported “${result.preset.name}”`);
 }
 
+function activeRegions(descriptor) {
+  const orientation = matchMedia("(orientation: portrait)").matches
+    ? "portrait"
+    : "landscape";
+  const declared = descriptor?.layouts?.[orientation]?.regions || [];
+  const regions = { ...DEFAULT_REGIONS };
+  for (const region of declared) regions[region.component] = region;
+  return regions;
+}
+
+function disposeControls() {
+  for (const control of [
+    spectrumControl,
+    presetsControl,
+    metadataControl,
+    metersControl,
+    balanceControl,
+    eqControl,
+  ]) {
+    control?.dispose?.();
+  }
+}
+
+function mountControls(state, descriptor) {
+  disposeControls();
+  const regions = activeRegions(descriptor);
+  for (const [component, root] of [
+    [EQ_COMPONENT, equalizer],
+    [BALANCE_COMPONENT, balanceRoot],
+    [METERS_COMPONENT, metersRoot],
+    [SPECTRUM_COMPONENT, spectrumRoot],
+    [METADATA_COMPONENT, metadataRoot],
+    [PRESETS_COMPONENT, presetsRoot],
+  ]) {
+    root.dataset.themeRegion = regions[component].id;
+  }
+
+  eqControl = controls.mount({
+    ...regions[EQ_COMPONENT],
+    root: equalizer,
+    context: {
+      value: bands,
+      frequencies: state.limits.eq.frequencies,
+      range: state.limits.eq,
+      labelFrequency,
+      labelValue: labelGain,
+      onInput(nextBands) {
+        bands = nextBands;
+        scheduleUpdate();
+      },
+    },
+  });
+  balanceControl = controls.mount({
+    ...regions[BALANCE_COMPONENT],
+    root: balanceRoot,
+    context: {
+      value: balance,
+      range: state.limits.balance,
+      labelValue: labelBalance,
+      onInput(nextBalance) {
+        balance = nextBalance;
+        scheduleBalanceUpdate();
+      },
+    },
+  });
+  metersControl = controls.mount({
+    ...regions[METERS_COMPONENT],
+    root: metersRoot,
+    context: { levelPercent, formatLevel },
+  });
+  spectrumControl = controls.mount({
+    ...regions[SPECTRUM_COMPONENT],
+    root: spectrumRoot,
+    context: {
+      bandCount: state.limits.eq.frequencies.length,
+      eqRoot: equalizer,
+      levelElements: eqControl.parts.levels,
+      levelPercent,
+    },
+  });
+  metadataControl = controls.mount({
+    ...regions[METADATA_COMPONENT],
+    root: metadataRoot,
+  });
+  metadataControl.setValue({
+    metadata: currentMetadata,
+    transport: currentTransport,
+  });
+  presetsControl = controls.mount({
+    ...regions[PRESETS_COMPONENT],
+    root: presetsRoot,
+    context: {
+      run: runPresetAction,
+      onSave: savePreset,
+      onLoad: loadPreset,
+      onExport: exportPreset,
+      onDelete: deletePreset,
+      onImport: importPreset,
+    },
+  });
+  eqControl.setValue(bands);
+  balanceControl.setValue(balance);
+  presetsControl.setValue({ presets: presetItems, selected: selectedPreset });
+}
+
 async function initialize() {
   try {
-    const [state] = await Promise.all([
+    const [state, descriptor] = await Promise.all([
       request("/api/v1/state"),
       initializeThemes(),
     ]);
+    currentState = state;
     bands = state.tone.bands;
     balance = state.tone.balance;
-    eqControl = controls.mount({
-      component: EQ_COMPONENT,
-      presentation: EQ_FADER_PRESENTATION,
-      root: equalizer,
-      options: { orientation: "responsive" },
-      context: {
-        value: bands,
-        frequencies: state.limits.eq.frequencies,
-        range: state.limits.eq,
-        labelFrequency,
-        labelValue: labelGain,
-        onInput(nextBands) {
-          bands = nextBands;
-          scheduleUpdate();
-        },
-      },
-    });
-    balanceControl = controls.mount({
-      component: BALANCE_COMPONENT,
-      presentation: BALANCE_SLIDER_PRESENTATION,
-      root: balanceRoot,
-      context: {
-        value: balance,
-        range: state.limits.balance,
-        labelValue: labelBalance,
-        onInput(nextBalance) {
-          balance = nextBalance;
-          scheduleBalanceUpdate();
-        },
-      },
-    });
-    metersControl = controls.mount({
-      component: METERS_COMPONENT,
-      presentation: LED_METERS_PRESENTATION,
-      root: metersRoot,
-      options: { releasePerFrame: 0.7 },
-      context: { levelPercent, formatLevel },
-    });
-    spectrumControl = controls.mount({
-      component: SPECTRUM_COMPONENT,
-      presentation: SPECTRUM_OVERLAY_PRESENTATION,
-      root: spectrumRoot,
-      context: {
-        bandCount: state.limits.eq.frequencies.length,
-        eqRoot: equalizer,
-        levelElements: eqControl.parts.levels,
-        levelPercent,
-      },
-    });
     currentMetadata = state.metadata || {};
     currentTransport = state.transport || {};
-    metadataControl = controls.mount({
-      component: METADATA_COMPONENT,
-      presentation: NOW_PLAYING_PRESENTATION,
-      root: metadataRoot,
-    });
-    metadataControl.setValue({
-      metadata: currentMetadata,
-      transport: currentTransport,
-    });
-    presetsControl = controls.mount({
-      component: PRESETS_COMPONENT,
-      presentation: PRESET_SELECTOR_PRESENTATION,
-      root: presetsRoot,
-      context: {
-        run: runPresetAction,
-        onSave: savePreset,
-        onLoad: loadPreset,
-        onExport: exportPreset,
-        onDelete: deletePreset,
-        onImport: importPreset,
-      },
-    });
+    mountControls(state, descriptor);
     setEngineStatus({
       online: state.audio.engine === "running",
       error: state.audio.engine === "offline" ? "CamillaDSP is unavailable" : null,
@@ -383,6 +494,10 @@ async function initialize() {
     showMessage(error.message, true);
   }
 }
+
+matchMedia("(orientation: portrait)").addEventListener("change", () => {
+  if (currentState && activeTheme) mountControls(currentState, activeTheme);
+});
 
 document.querySelector("#reset").addEventListener("click", () => {
   runPresetAction(async () => {

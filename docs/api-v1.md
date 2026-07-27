@@ -10,6 +10,7 @@ GET /api/v1/settings
 PUT /api/v1/settings/privacy
 GET /api/v1/artwork/current
 GET /api/v1/themes
+GET /api/v1/themes/{id}
 POST /api/v1/themes/install
 PUT /api/v1/tone/eq
 PUT /api/v1/tone/balance
@@ -355,6 +356,11 @@ filesystem paths or arbitrary remote URLs.
 ## Themes
 
 `GET /api/v1/themes`
+
+`GET /api/v1/themes/{id}` returns a validated activation descriptor containing
+the theme summary, `apiVersion`, semantic `tokens`, and parsed portrait and
+landscape `layouts`. A missing layout or component falls back to the bundled
+receiver presentation.
 
 `POST /api/v1/themes/install`
 

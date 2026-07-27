@@ -415,6 +415,13 @@ def create_app(
     def get_v1_themes() -> list[dict[str, Any]]:
         return themes.list()
 
+    @app.get("/api/v1/themes/{theme_id}")
+    def get_v1_theme(theme_id: str) -> dict[str, Any]:
+        try:
+            return themes.descriptor(theme_id)
+        except FileNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Theme not found") from error
+
     @app.post("/api/v1/themes/install", status_code=201)
     async def install_v1_theme(request: Request) -> dict[str, Any]:
         archive = bytearray()
