@@ -80,6 +80,11 @@ The presentations generate the same stable classes and accessibility labels
 used by the original receiver. Existing CSS themes and responsive layouts
 therefore continue to work without knowing about registry internals.
 
+Presentations mount inside application-owned receiver surfaces. Declarative
+theme layout controls the physical flow of the `levels`, `tone`, and `presets`
+surfaces; it does not move presentation-generated DOM across component
+boundaries or take ownership of the header and service status.
+
 ## Testing
 
 Pure registry behavior uses Node's built-in test runner and has no package

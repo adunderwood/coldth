@@ -250,6 +250,32 @@ def test_layout_rejects_incompatible_presentations_and_options():
                 ]
             }
         )
+    with pytest.raises(ThemePackageError, match="Unknown layout surface"):
+        validate_layout(
+            {
+                "regions": [
+                    {
+                        "id": "tone",
+                        "component": "eq",
+                        "presentation": "coldth.presentation/vertical-fader@1",
+                    }
+                ],
+                "flow": ["tone", "transport"],
+            }
+        )
+    with pytest.raises(ThemePackageError, match="unique array"):
+        validate_layout(
+            {
+                "regions": [
+                    {
+                        "id": "tone",
+                        "component": "eq",
+                        "presentation": "coldth.presentation/vertical-fader@1",
+                    }
+                ],
+                "flow": ["tone", "tone"],
+            }
+        )
     with pytest.raises(ThemePackageError, match="Unknown option"):
         validate_layout(
             {
@@ -278,7 +304,103 @@ def test_layout_rejects_incompatible_presentations_and_options():
         )
 
 
-def test_theme_inheritance_is_rejected_until_activation_support_exists(tmp_path):
+def test_theme_inheritance_resolves_css_tokens_and_layout_regions(tmp_path):
+    builtins = tmp_path / "builtins"
+    builtins.mkdir()
+    parent = builtins / "parent"
+    parent.mkdir()
+    (parent / "theme.css").write_text(":root { --parent: 1; }", encoding="utf-8")
+    (parent / "theme.json").write_text(
+        json.dumps(
+            {
+                "id": "parent",
+                "name": "Parent",
+                "tokens": {
+                    "receiver.panel": "#111111",
+                    "receiver.accent": "#00ff00",
+                },
+                "layouts": {"landscape": "landscape.json"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (parent / "landscape.json").write_text(
+        json.dumps(
+            {
+                "regions": [
+                    {
+                        "id": "tone",
+                        "component": "eq",
+                        "presentation": "coldth.presentation/vertical-fader@1",
+                        "options": {"orientation": "vertical"},
+                    },
+                    {
+                        "id": "balance",
+                        "component": "balance",
+                        "presentation": (
+                            "coldth.presentation/horizontal-slider@1"
+                        ),
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    registry = ThemeRegistry(builtins, tmp_path / "installed")
+    manifest = {
+        "id": "com.example.child",
+        "name": "Child",
+        "version": "1.0.0",
+        "apiVersion": 1,
+        "extends": "parent",
+        "styles": "theme.css",
+        "tokens": {"receiver.accent": "#ff00ff"},
+        "layouts": {"landscape": "child.json"},
+    }
+    child_layout = {
+        "regions": [
+            {
+                "id": "tone",
+                "component": "tone-bank",
+                "presentation": "coldth.presentation/fader-ladder@1",
+                "options": {"segments": 18},
+            }
+        ],
+        "flow": ["tone", "levels", "presets"],
+    }
+
+    registry.install(
+        theme_archive(
+            manifest=manifest,
+            extra={"child.json": json.dumps(child_layout)},
+        )
+    )
+    descriptor = registry.descriptor("com.example.child")
+
+    assert descriptor["lineage"] == ["parent", "com.example.child"]
+    assert descriptor["stylesheets"] == [
+        "/assets/themes/parent/theme.css",
+        "/api/v1/themes/com.example.child/assets/theme.css",
+    ]
+    assert descriptor["tokens"] == {
+        "receiver.panel": "#111111",
+        "receiver.accent": "#ff00ff",
+    }
+    assert [region["id"] for region in descriptor["layouts"]["landscape"]["regions"]] == [
+        "tone",
+        "balance",
+    ]
+    assert descriptor["layouts"]["landscape"]["regions"][0]["component"] == (
+        "tone-bank"
+    )
+    assert descriptor["layouts"]["landscape"]["flow"] == [
+        "tone",
+        "levels",
+        "presets",
+    ]
+
+
+def test_theme_inheritance_rejects_missing_parent(tmp_path):
     builtins = tmp_path / "builtins"
     builtins.mkdir()
     registry = ThemeRegistry(builtins, tmp_path / "installed")
@@ -287,9 +409,39 @@ def test_theme_inheritance_is_rejected_until_activation_support_exists(tmp_path)
         "name": "Child",
         "version": "1.0.0",
         "apiVersion": 1,
-        "extends": "com.example.parent",
+        "extends": "com.example.missing",
         "styles": "theme.css",
     }
 
-    with pytest.raises(ThemePackageError, match="inheritance is not active"):
+    with pytest.raises(ThemePackageError, match="Parent theme is not installed"):
         registry.install(theme_archive(manifest=manifest))
+
+
+def test_theme_inheritance_detects_cycles_in_existing_store(tmp_path):
+    builtins = tmp_path / "builtins"
+    installed = tmp_path / "installed"
+    builtins.mkdir()
+    installed.mkdir()
+    for theme_id, parent in (
+        ("com.example.one", "com.example.two"),
+        ("com.example.two", "com.example.one"),
+    ):
+        root = installed / theme_id
+        root.mkdir()
+        (root / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "id": theme_id,
+                    "name": theme_id,
+                    "version": "1.0.0",
+                    "apiVersion": 1,
+                    "extends": parent,
+                    "styles": "theme.css",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (root / "theme.css").write_text("", encoding="utf-8")
+
+    with pytest.raises(ThemePackageError, match="inheritance cycle"):
+        ThemeRegistry(builtins, installed).descriptor("com.example.one")

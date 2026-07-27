@@ -89,6 +89,15 @@ header {
   margin-bottom: 30px;
 }
 
+.receiver-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.receiver-layout > [data-layout-surface] {
+  margin: 0;
+}
+
 h1,
 h2,
 p {

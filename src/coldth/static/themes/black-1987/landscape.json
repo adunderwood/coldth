@@ -9,5 +9,6 @@
         "segments": 24
       }
     }
-  ]
+  ],
+  "flow": ["levels", "tone", "presets"]
 }

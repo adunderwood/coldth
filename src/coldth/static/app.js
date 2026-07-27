@@ -27,6 +27,13 @@ const metersRoot = document.querySelector("#stereo-meter-control");
 const spectrumRoot = document.querySelector("#spectrum-control");
 const metadataRoot = document.querySelector("#metadata-control");
 const presetsRoot = document.querySelector("#preset-component");
+const receiverLayout = document.querySelector("#receiver-layout");
+const layoutSurfaces = new Map(
+  [...receiverLayout.querySelectorAll("[data-layout-surface]")].map((surface) => [
+    surface.dataset.layoutSurface,
+    surface,
+  ]),
+);
 
 let bands = {};
 let balance = 0;
@@ -106,6 +113,7 @@ const TOKEN_PROPERTIES = {
   "receiver.meter.hot": "--receiver-meter-hot",
   "receiver.accent": "--receiver-accent",
 };
+const DEFAULT_SURFACE_FLOW = ["levels", "tone", "presets"];
 
 const labelFrequency = (frequency) =>
   frequency >= 1000 ? `${frequency / 1000}k` : `${frequency}`;
@@ -392,13 +400,30 @@ async function importPreset(file) {
 }
 
 function activeRegions(descriptor) {
-  const orientation = matchMedia("(orientation: portrait)").matches
-    ? "portrait"
-    : "landscape";
-  const declared = descriptor?.layouts?.[orientation]?.regions || [];
+  const declared = activeLayout(descriptor)?.regions || [];
   const regions = { ...DEFAULT_REGIONS };
   for (const region of declared) regions[region.component] = region;
   return regions;
+}
+
+function activeLayout(descriptor) {
+  const orientation = matchMedia("(orientation: portrait)").matches
+    ? "portrait"
+    : "landscape";
+  return descriptor?.layouts?.[orientation] || null;
+}
+
+function applySurfaceFlow(descriptor) {
+  const requested = activeLayout(descriptor)?.flow || [];
+  const flow = [
+    ...requested,
+    ...DEFAULT_SURFACE_FLOW.filter((surface) => !requested.includes(surface)),
+  ];
+  for (const surface of flow) {
+    const element = layoutSurfaces.get(surface);
+    if (element) receiverLayout.append(element);
+  }
+  receiverLayout.dataset.flow = flow.join(" ");
 }
 
 function disposeControls() {
@@ -417,11 +442,12 @@ function disposeControls() {
 
 function mountControls(state, descriptor) {
   disposeControls();
+  applySurfaceFlow(descriptor);
   const regions = activeRegions(descriptor);
   const usesToneBank = Boolean(
-    descriptor?.layouts?.[
-      matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape"
-    ]?.regions?.some((region) => region.component === TONE_BANK_COMPONENT),
+    activeLayout(descriptor)?.regions?.some(
+      (region) => region.component === TONE_BANK_COMPONENT,
+    ),
   );
   for (const [component, root] of [
     [EQ_COMPONENT, equalizer],

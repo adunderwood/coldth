@@ -361,8 +361,10 @@ filesystem paths or arbitrary remote URLs.
 the theme summary, `apiVersion`, semantic `tokens`, and parsed portrait and
 landscape `layouts`. Inherited descriptors also contain root-to-child
 `lineage` and `stylesheets`; tokens and matching region IDs are already
-resolved. A missing layout or component falls back to the bundled receiver
-presentation.
+resolved. A layout may include `flow`, an ordered subset of the stable
+`levels`, `tone`, and `presets` receiver surfaces. A missing layout, component,
+or surface placement falls back to the bundled receiver presentation and
+default flow.
 
 `POST /api/v1/themes/install`
 

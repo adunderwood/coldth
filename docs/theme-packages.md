@@ -301,12 +301,31 @@ Layouts arrange components in named regions:
         "endAngle": 135
       }
     }
-  ]
+  ],
+  "flow": ["levels", "tone", "presets"]
 }
 ```
 
 The layout engine creates the elements. Theme CSS styles stable component,
 region, state, and part selectors.
+
+`flow` physically orders Coldth's three stable receiver surfaces:
+
+```text
+levels   stereo meters, balance, analyzer status, and metadata
+tone     EQ or composite tone-bank presentation
+presets  preset controls
+```
+
+A flow may list only the surfaces it wants to prioritize. Coldth appends any
+omitted surfaces in the safe default order, so a theme cannot accidentally
+remove a control. Themes may use `[data-layout-surface="levels"]`,
+`[data-layout-surface="tone"]`, and `[data-layout-surface="presets"]` for
+placement and styling. The header, engine status, and message region remain
+application-owned.
+
+When inheriting, a child-supplied `flow` replaces its parent's flow. If the
+child omits it, the parent flow remains active.
 
 ## Semantic tokens
 

@@ -21,6 +21,7 @@ MAX_FILES = 128
 THEME_ID = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)+$")
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 REGION_ID = re.compile(r"^[a-z][a-z0-9-]*$")
+SURFACE_IDS = {"levels", "tone", "presets"}
 
 COMPONENT_PRESENTATIONS = {
     "eq": {"coldth.presentation/vertical-fader@1"},
@@ -233,8 +234,12 @@ def _validate_options(presentation: str, options: Any) -> dict[str, Any]:
 
 
 def validate_layout(value: Any) -> dict[str, Any]:
-    if not isinstance(value, dict) or set(value) != {"regions"}:
-        raise ThemePackageError("layout must contain only a regions array")
+    if (
+        not isinstance(value, dict)
+        or "regions" not in value
+        or set(value) - {"regions", "flow"}
+    ):
+        raise ThemePackageError("layout must contain regions and optional flow")
     regions = value["regions"]
     if not isinstance(regions, list) or not regions:
         raise ThemePackageError("layout regions must be a non-empty array")
@@ -272,14 +277,33 @@ def validate_layout(value: Any) -> dict[str, Any]:
                 "options": _validate_options(presentation, region.get("options")),
             }
         )
-    return {"regions": result}
+    layout: dict[str, Any] = {"regions": result}
+    if "flow" in value:
+        flow = value["flow"]
+        if (
+            not isinstance(flow, list)
+            or not flow
+            or not all(isinstance(surface, str) for surface in flow)
+            or len(flow) != len(set(flow))
+        ):
+            raise ThemePackageError("layout flow must be a non-empty unique array")
+        unknown_surfaces = set(flow) - SURFACE_IDS
+        if unknown_surfaces:
+            raise ThemePackageError(
+                f"Unknown layout surface: {sorted(unknown_surfaces)[0]}"
+            )
+        layout["flow"] = flow
+    return layout
 
 
 def _merge_layout(
     parent: dict[str, Any] | None, child: dict[str, Any]
 ) -> dict[str, Any]:
     if parent is None:
-        return {"regions": [dict(region) for region in child["regions"]]}
+        result = {"regions": [dict(region) for region in child["regions"]]}
+        if "flow" in child:
+            result["flow"] = list(child["flow"])
+        return result
     regions = [dict(region) for region in parent["regions"]]
     positions = {region["id"]: index for index, region in enumerate(regions)}
     for region in child["regions"]:
@@ -289,7 +313,11 @@ def _merge_layout(
         else:
             positions[replacement["id"]] = len(regions)
             regions.append(replacement)
-    return {"regions": regions}
+    result = {"regions": regions}
+    flow = child.get("flow", parent.get("flow"))
+    if flow is not None:
+        result["flow"] = list(flow)
+    return result
 
 
 def _validate_css(payload: bytes, package_files: set[str]) -> None:
