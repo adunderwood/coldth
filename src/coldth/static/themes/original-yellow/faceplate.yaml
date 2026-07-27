@@ -3,39 +3,31 @@ schemaVersion: "0.1"
 
 layouts:
   landscape:
+    hidden:
+      - spectrum
     root:
       frame: receiver
       direction: column
       gap: 16
       children:
-        - frame: monitoring
-          direction: row
-          gap: 16
-          align: stretch
-          children:
-            - frame: stereo
-              direction: column
-              gap: 24
-              padding: 32
-              width: fill
-              children:
-                - surface: meters
-                  width: fill
-                - surface: balance
-                  width: fill
-
-            - surface: spectrum
-              width: 300
-              height: fill
-
         - frame: now-playing
           direction: row
           gap: 24
           padding: 32
           children:
             - surface: album-art
-              width: 180
+              width: 96
             - surface: track-info
+              width: fill
+
+        - frame: stereo
+          direction: column
+          gap: 24
+          padding: 32
+          children:
+            - surface: meters
+              width: fill
+            - surface: balance
               width: fill
 
         - surface: tone
@@ -45,11 +37,24 @@ layouts:
           width: fill
 
   portrait:
+    hidden:
+      - spectrum
     root:
       frame: receiver
       direction: column
       gap: 16
       children:
+        - frame: now-playing
+          direction: column
+          gap: 20
+          padding: 24
+          align: stretch
+          children:
+            - surface: album-art
+              width: 96
+            - surface: track-info
+              width: fill
+
         - frame: stereo
           direction: column
           gap: 24
@@ -58,20 +63,6 @@ layouts:
             - surface: meters
               width: fill
             - surface: balance
-              width: fill
-
-        - surface: spectrum
-          width: fill
-
-        - frame: now-playing
-          direction: column
-          gap: 20
-          padding: 24
-          align: stretch
-          children:
-            - surface: album-art
-              width: 160
-            - surface: track-info
               width: fill
 
         - surface: tone
