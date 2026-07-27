@@ -61,7 +61,7 @@ header,
   gap: 14px;
 }
 
-.header-controls {
+.footer-controls {
   display: flex;
   align-items: flex-end;
   gap: 18px;
@@ -96,15 +96,22 @@ header {
 }
 
 .product-signature {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 22px;
+  color: var(--receiver-legend);
+}
+
+.signature-lockup {
   display: grid;
   justify-items: end;
   gap: 2px;
-  margin-top: 22px;
-  color: var(--receiver-legend);
   text-align: right;
 }
 
-.product-signature span {
+.signature-lockup span {
   color: var(--text);
   font-size: 2rem;
   font-weight: 800;
@@ -112,7 +119,7 @@ header {
   line-height: 0.95;
 }
 
-.product-signature small {
+.signature-lockup small {
   font-size: 0.58rem;
   font-weight: 750;
   letter-spacing: 0.12em;
@@ -1067,10 +1074,19 @@ dialog input {
     align-items: flex-end;
   }
 
-  .header-controls {
-    flex-direction: column-reverse;
+  .product-signature {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .footer-controls {
+    flex-wrap: wrap;
     align-items: flex-end;
     gap: 10px;
+  }
+
+  .signature-lockup {
+    justify-self: end;
   }
 
   .theme-picker select {

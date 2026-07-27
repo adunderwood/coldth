@@ -12,15 +12,8 @@
   <body>
     <main>
       <header class="receiver-header">
-        <div class="header-controls">
-          <a class="quiet-button settings-link" href="/settings">Settings</a>
-          <label class="theme-picker">
-            <span>Faceplate</span>
-            <select id="theme-list" aria-label="Choose faceplate theme"></select>
-          </label>
-          <div id="engine-status" class="status" aria-live="polite">
-            <span></span> Connecting
-          </div>
+        <div id="engine-status" class="status" aria-live="polite">
+          <span></span> Connecting
         </div>
       </header>
 
@@ -64,8 +57,17 @@
       </div>
       <p id="message" class="message" role="status" aria-live="polite"></p>
       <footer class="product-signature" aria-label="Coldth Raspberry Pi equalizer">
-        <span>Coldth</span>
-        <small>Raspberry Pi equalizer</small>
+        <div class="footer-controls">
+          <a class="quiet-button settings-link" href="/settings">Settings</a>
+          <label class="theme-picker">
+            <span>Faceplate</span>
+            <select id="theme-list" aria-label="Choose faceplate theme"></select>
+          </label>
+        </div>
+        <div class="signature-lockup">
+          <span>Coldth</span>
+          <small>Raspberry Pi equalizer</small>
+        </div>
       </footer>
     </main>
   </body>
