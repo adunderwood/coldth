@@ -7,8 +7,10 @@ import pytest
 
 from coldth.themes import (
     ThemeAlreadyInstalledError,
+    ThemeDependencyError,
     ThemePackageError,
     ThemeRegistry,
+    ThemeVersionError,
     validate_layout,
     validate_manifest,
 )
@@ -114,7 +116,7 @@ def test_theme_package_installs_atomically_and_serves_assets(tmp_path):
         "version": "1.0.0",
         "builtin": False,
         "stylesheet": (
-            "/api/v1/themes/com.example.magenta/assets/theme.css"
+            "/api/v1/themes/com.example.magenta/assets/theme.css?v=1.0.0"
         ),
     }
     assert registry.asset("com.example.magenta", "theme.css").read_text() == (
@@ -380,7 +382,7 @@ def test_theme_inheritance_resolves_css_tokens_and_layout_regions(tmp_path):
     assert descriptor["lineage"] == ["parent", "com.example.child"]
     assert descriptor["stylesheets"] == [
         "/assets/themes/parent/theme.css",
-        "/api/v1/themes/com.example.child/assets/theme.css",
+        "/api/v1/themes/com.example.child/assets/theme.css?v=1.0.0",
     ]
     assert descriptor["tokens"] == {
         "receiver.panel": "#111111",
@@ -445,3 +447,91 @@ def test_theme_inheritance_detects_cycles_in_existing_store(tmp_path):
 
     with pytest.raises(ThemePackageError, match="inheritance cycle"):
         ThemeRegistry(builtins, installed).descriptor("com.example.one")
+
+
+def test_theme_update_replaces_installed_copy_and_uninstalls(tmp_path):
+    builtins = tmp_path / "builtins"
+    builtins.mkdir()
+    registry = ThemeRegistry(builtins, tmp_path / "installed")
+    registry.install(theme_archive(css=b":root { --generation: one; }"))
+    update_manifest = {
+        "id": "com.example.magenta",
+        "name": "Magenta",
+        "version": "2.0.0",
+        "apiVersion": 1,
+        "styles": "theme.css",
+    }
+
+    result = registry.install_result(
+        theme_archive(
+            manifest=update_manifest,
+            css=b":root { --generation: two; }",
+        )
+    )
+
+    assert result["operation"] == "updated"
+    assert result["previousVersion"] == "1.0.0"
+    assert result["theme"]["version"] == "2.0.0"
+    assert registry.asset(
+        "com.example.magenta", "theme.css"
+    ).read_text() == ":root { --generation: two; }"
+    assert not (tmp_path / "installed" / "com.example.magenta" / "versions").exists()
+
+    with pytest.raises(ThemeVersionError, match="newer than 2.0.0"):
+        registry.install(theme_archive())
+    assert registry.asset(
+        "com.example.magenta", "theme.css"
+    ).read_text() == ":root { --generation: two; }"
+
+    removed = registry.uninstall("com.example.magenta")
+
+    assert removed["version"] == "2.0.0"
+    assert registry.list() == []
+
+
+def test_theme_uninstall_rejects_installed_dependents(tmp_path):
+    builtins = tmp_path / "builtins"
+    builtins.mkdir()
+    registry = ThemeRegistry(builtins, tmp_path / "installed")
+    registry.install(theme_archive())
+    child_manifest = {
+        "id": "com.example.child",
+        "name": "Child",
+        "version": "1.0.0",
+        "apiVersion": 1,
+        "extends": "com.example.magenta",
+        "styles": "theme.css",
+    }
+    registry.install(theme_archive(manifest=child_manifest))
+
+    with pytest.raises(ThemeDependencyError, match="com.example.child"):
+        registry.uninstall("com.example.magenta")
+
+
+def test_theme_update_replaces_existing_flat_install(tmp_path):
+    builtins = tmp_path / "builtins"
+    installed = tmp_path / "installed"
+    builtins.mkdir()
+    legacy = installed / "com.example.magenta"
+    legacy.mkdir(parents=True)
+    legacy_manifest = {
+        "id": "com.example.magenta",
+        "name": "Magenta",
+        "version": "1.0.0",
+        "apiVersion": 1,
+        "styles": "theme.css",
+    }
+    (legacy / "manifest.json").write_text(
+        json.dumps(legacy_manifest), encoding="utf-8"
+    )
+    (legacy / "theme.css").write_text("legacy", encoding="utf-8")
+    registry = ThemeRegistry(builtins, installed)
+    update_manifest = {**legacy_manifest, "version": "1.1.0"}
+
+    result = registry.install_result(theme_archive(manifest=update_manifest))
+
+    assert result["theme"]["version"] == "1.1.0"
+    assert (
+        installed / "com.example.magenta" / "theme.css"
+    ).read_text() == ":root { --accent: #f0f; }\n"
+    assert not (installed / "com.example.magenta" / "versions").exists()

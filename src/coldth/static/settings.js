@@ -6,8 +6,8 @@ const themeStylesheet = document.querySelector("#theme-stylesheet");
 const themePackage = document.querySelector("#theme-package");
 const installedThemes = document.querySelector("#installed-themes");
 
-const savedTheme = localStorage.getItem("coldth-theme") || "original-yellow";
-document.documentElement.dataset.theme = savedTheme;
+let selectedTheme = localStorage.getItem("coldth-theme") || "original-yellow";
+document.documentElement.dataset.theme = selectedTheme;
 
 async function request(url, options = {}) {
   const response = await fetch(url, {
@@ -34,14 +34,27 @@ function renderThemes(themes) {
         ? "Bundled with Coldth"
         : `${theme.id} · ${theme.version}`;
       text.append(name, detail);
-      const state = document.createElement("span");
-      state.className = "source-status";
-      state.textContent = theme.id === savedTheme ? "Selected" : "";
-      row.append(text, state);
+      const actions = document.createElement("span");
+      actions.className = "theme-actions";
+      if (theme.id === selectedTheme) {
+        const state = document.createElement("span");
+        state.className = "source-status";
+        state.textContent = "Selected";
+        actions.append(state);
+      }
+      if (!theme.builtin) {
+        const uninstall = document.createElement("button");
+        uninstall.type = "button";
+        uninstall.className = "danger-button";
+        uninstall.textContent = "Uninstall";
+        uninstall.addEventListener("click", () => uninstallTheme(theme));
+        actions.append(uninstall);
+      }
+      row.append(text, actions);
       return row;
     }),
   );
-  const selected = themes.find((theme) => theme.id === savedTheme);
+  const selected = themes.find((theme) => theme.id === selectedTheme);
   themeStylesheet.href =
     selected?.stylesheet || "/assets/themes/original-yellow/theme.css";
 }
@@ -49,6 +62,30 @@ function renderThemes(themes) {
 async function refreshThemes() {
   const themes = await request("/api/v1/themes");
   renderThemes(themes);
+  return themes;
+}
+
+async function uninstallTheme(theme) {
+  if (!globalThis.confirm(`Uninstall “${theme.name}”?`)) {
+    return;
+  }
+  settingsMessage.textContent = `Uninstalling “${theme.name}”…`;
+  settingsMessage.classList.remove("error");
+  try {
+    await request(`/api/v1/themes/${encodeURIComponent(theme.id)}`, {
+      method: "DELETE",
+    });
+    if (selectedTheme === theme.id) {
+      selectedTheme = "original-yellow";
+      localStorage.setItem("coldth-theme", selectedTheme);
+      document.documentElement.dataset.theme = selectedTheme;
+    }
+    await refreshThemes();
+    settingsMessage.textContent = `Uninstalled “${theme.name}”`;
+  } catch (error) {
+    settingsMessage.textContent = error.message;
+    settingsMessage.classList.add("error");
+  }
 }
 
 function applyPrivacy(privacy) {
@@ -99,7 +136,10 @@ themePackage.addEventListener("change", async () => {
       body: file,
     });
     await refreshThemes();
-    settingsMessage.textContent = `Installed “${result.theme.name}”`;
+    settingsMessage.textContent =
+      result.operation === "updated"
+        ? `Updated “${result.theme.name}” to ${result.theme.version}`
+        : `Installed “${result.theme.name}”`;
   } catch (error) {
     settingsMessage.textContent = error.message;
     settingsMessage.classList.add("error");

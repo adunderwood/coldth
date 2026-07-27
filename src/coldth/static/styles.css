@@ -649,6 +649,20 @@ button:hover,
   gap: 4px;
 }
 
+.theme-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.theme-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.72rem;
+}
+
 .installed-theme small {
   color: var(--muted);
   font-size: 0.72rem;

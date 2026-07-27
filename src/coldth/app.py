@@ -31,8 +31,10 @@ from .store import StateStore
 from .themes import (
     MAX_ARCHIVE_BYTES,
     ThemeAlreadyInstalledError,
+    ThemeDependencyError,
     ThemePackageError,
     ThemeRegistry,
+    ThemeVersionError,
 )
 
 logger = logging.getLogger("coldth.audio")
@@ -432,13 +434,42 @@ def create_app(
             if len(archive) > MAX_ARCHIVE_BYTES:
                 raise HTTPException(status_code=413, detail="Theme archive is too large")
         try:
-            theme = await asyncio.to_thread(themes.install, bytes(archive))
+            result = await asyncio.to_thread(themes.install_result, bytes(archive))
         except ThemeAlreadyInstalledError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except ThemeVersionError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
         except ThemePackageError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
+        theme = result["theme"]
+        event_type = (
+            "theme.updated"
+            if result["operation"] == "updated"
+            else "theme.installed"
+        )
         await events.publish(
-            "theme.installed",
+            event_type,
+            {
+                "revision": store.advance_revision(),
+                "theme": theme,
+                "previousVersion": result["previousVersion"],
+            },
+        )
+        return {
+            "revision": store.revision(),
+            **result,
+        }
+
+    @app.delete("/api/v1/themes/{theme_id}")
+    async def uninstall_v1_theme(theme_id: str) -> dict[str, Any]:
+        try:
+            theme = await asyncio.to_thread(themes.uninstall, theme_id)
+        except FileNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Theme not found") from error
+        except ThemeDependencyError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        await events.publish(
+            "theme.uninstalled",
             {"revision": store.advance_revision(), "theme": theme},
         )
         return {"revision": store.revision(), "theme": theme}

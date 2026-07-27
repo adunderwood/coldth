@@ -68,6 +68,20 @@ class ThemeAlreadyInstalledError(ThemePackageError):
     pass
 
 
+class ThemeDependencyError(ThemePackageError):
+    pass
+
+
+class ThemeVersionError(ThemePackageError):
+    pass
+
+
+def _version_key(version: str) -> tuple[int, int, int]:
+    if not VERSION.fullmatch(version):
+        raise ThemeVersionError(f"Invalid stored theme version: {version}")
+    return tuple(int(part) for part in version.split("."))  # type: ignore[return-value]
+
+
 def _require_text(value: Any, field: str, *, maximum: int = 200) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ThemePackageError(f"{field} must be non-empty text")
@@ -405,32 +419,47 @@ class ThemeRegistry:
             )
         return themes
 
+    def _installed_package(
+        self, theme_id: str
+    ) -> tuple[Path, dict[str, Any]]:
+        if self.installed_root is None:
+            raise FileNotFoundError(theme_id)
+        root = self.installed_root / theme_id
+        try:
+            manifest = validate_manifest(
+                json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+            )
+        except (OSError, json.JSONDecodeError, ThemePackageError) as error:
+            raise FileNotFoundError(theme_id) from error
+        if manifest["id"] != theme_id:
+            raise FileNotFoundError(theme_id)
+        return root, manifest
+
+    def _installed_summary(self, theme_id: str) -> dict[str, Any]:
+        _, manifest = self._installed_package(theme_id)
+        return {
+            "id": theme_id,
+            "name": manifest["name"],
+            "description": manifest["description"],
+            "version": manifest["version"],
+            "builtin": False,
+            "stylesheet": (
+                f"/api/v1/themes/{theme_id}/assets/{manifest['styles']}"
+                f"?v={manifest['version']}"
+            ),
+        }
+
     def _installed_themes(self) -> list[dict[str, Any]]:
         if self.installed_root is None:
             return []
         themes: list[dict[str, Any]] = []
-        for manifest_path in sorted(self.installed_root.glob("*/manifest.json")):
+        for root in sorted(self.installed_root.iterdir()):
+            if not root.is_dir() or root.name.startswith("."):
+                continue
             try:
-                manifest = validate_manifest(
-                    json.loads(manifest_path.read_text(encoding="utf-8"))
-                )
-            except (OSError, json.JSONDecodeError, ThemePackageError):
+                themes.append(self._installed_summary(root.name))
+            except (FileNotFoundError, ThemePackageError):
                 continue
-            theme_id = manifest["id"]
-            if manifest_path.parent.name != theme_id:
-                continue
-            themes.append(
-                {
-                    "id": theme_id,
-                    "name": manifest["name"],
-                    "description": manifest["description"],
-                    "version": manifest["version"],
-                    "builtin": False,
-                    "stylesheet": (
-                        f"/api/v1/themes/{theme_id}/assets/{manifest['styles']}"
-                    ),
-                }
-            )
         return themes
 
     def list(self) -> list[dict[str, Any]]:
@@ -473,13 +502,8 @@ class ThemeRegistry:
                 raise FileNotFoundError(theme_id) from error
             tokens = _validate_tokens(manifest.get("tokens"))
         else:
-            if self.installed_root is None:
-                raise FileNotFoundError(theme_id)
-            root = self.installed_root / theme_id
             try:
-                manifest = validate_manifest(
-                    json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-                )
+                root, manifest = self._installed_package(theme_id)
                 layouts = {
                     name: validate_layout(
                         json.loads((root / path).read_text(encoding="utf-8"))
@@ -531,7 +555,7 @@ class ThemeRegistry:
             "lineage": [*parent["lineage"], theme_id],
         }
 
-    def install(self, archive: bytes) -> dict[str, Any]:
+    def install_result(self, archive: bytes) -> dict[str, Any]:
         if self.installed_root is None:
             raise ThemePackageError("Theme installation is not configured")
         if not archive or len(archive) > MAX_ARCHIVE_BYTES:
@@ -632,16 +656,79 @@ class ThemeRegistry:
                             shutil.copyfileobj(source, output)
 
             target = self.installed_root / manifest["id"]
+            version = manifest["version"]
+            previous_version: str | None = None
+            operation = "installed"
             if target.exists():
-                raise ThemeAlreadyInstalledError(
-                    f"Theme is already installed: {manifest['id']}"
-                )
-            os.replace(extracted, target)
-            return next(theme for theme in self.list() if theme["id"] == manifest["id"])
+                _, installed_manifest = self._installed_package(manifest["id"])
+                previous_version = installed_manifest["version"]
+                if version == previous_version:
+                    raise ThemeAlreadyInstalledError(
+                        f"Theme version is already installed: {manifest['id']} {version}"
+                    )
+                if _version_key(version) <= _version_key(previous_version):
+                    raise ThemeVersionError(
+                        f"Theme update must be newer than {previous_version}"
+                    )
+                backup = staging_parent / "previous"
+                os.replace(target, backup)
+                try:
+                    os.replace(extracted, target)
+                except Exception:
+                    os.replace(backup, target)
+                    raise
+                operation = "updated"
+            else:
+                os.replace(extracted, target)
+            return {
+                "operation": operation,
+                "previousVersion": previous_version,
+                "theme": self._installed_summary(manifest["id"]),
+            }
         except zipfile.BadZipFile as error:
             raise ThemePackageError("Theme package is not a valid ZIP archive") from error
         finally:
             shutil.rmtree(staging_parent, ignore_errors=True)
+
+    def install(self, archive: bytes) -> dict[str, Any]:
+        return self.install_result(archive)["theme"]
+
+    def _dependents(self, theme_id: str) -> list[str]:
+        dependents: set[str] = set()
+        for manifest_path in self.builtin_root.glob("*/theme.json"):
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if isinstance(manifest, dict) and manifest.get("extends") == theme_id:
+                dependents.add(str(manifest.get("id", manifest_path.parent.name)))
+        for summary in self._installed_themes():
+            if summary["id"] == theme_id:
+                continue
+            try:
+                _, manifest = self._installed_package(summary["id"])
+            except FileNotFoundError:
+                continue
+            if manifest.get("extends") == theme_id:
+                dependents.add(summary["id"])
+        return sorted(dependents)
+
+    def uninstall(self, theme_id: str) -> dict[str, Any]:
+        if self.installed_root is None:
+            raise FileNotFoundError(theme_id)
+        summary = self._installed_summary(theme_id)
+        dependents = self._dependents(theme_id)
+        if dependents:
+            raise ThemeDependencyError(
+                f"Theme is required by: {', '.join(dependents)}"
+            )
+        root = self.installed_root / theme_id
+        trash = self.installed_root / f".uninstall-{theme_id}"
+        if trash.exists():
+            shutil.rmtree(trash)
+        os.replace(root, trash)
+        shutil.rmtree(trash)
+        return summary
 
     def asset(self, theme_id: str, asset_path: str) -> Path:
         if self.installed_root is None or not THEME_ID.fullmatch(theme_id):
@@ -655,7 +742,7 @@ class ThemeRegistry:
             or any(part in {"", "."} for part in relative.parts)
         ):
             raise FileNotFoundError(asset_path)
-        root = (self.installed_root / theme_id).resolve()
+        root = self._installed_package(theme_id)[0].resolve()
         candidate = root.joinpath(*relative.parts).resolve()
         if root not in candidate.parents or not candidate.is_file():
             raise FileNotFoundError(asset_path)

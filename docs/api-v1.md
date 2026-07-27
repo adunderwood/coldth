@@ -12,6 +12,7 @@ GET /api/v1/artwork/current
 GET /api/v1/themes
 GET /api/v1/themes/{id}
 POST /api/v1/themes/install
+DELETE /api/v1/themes/{id}
 PUT /api/v1/tone/eq
 PUT /api/v1/tone/balance
 GET /api/v1/health/audio
@@ -371,6 +372,14 @@ default flow.
 The complete package and motion contract is defined in
 [theme-packages.md](theme-packages.md).
 
+Installing a new identifier returns operation `installed`. Uploading a strictly
+newer semantic version atomically replaces the installed package and returns
+operation `updated`. Coldth stores one version of each installed theme.
+
+`DELETE /api/v1/themes/{id}` removes the installed package. Bundled themes
+cannot be removed, and an installed theme cannot be removed while any bundled
+or installed theme extends it.
+
 A package manifest identifies its contract and entry points:
 
 ```json
@@ -395,8 +404,9 @@ A package manifest identifies its contract and entry points:
 
 Installation accepts the ZIP bytes directly with
 `Content-Type: application/zip`. It returns `201` after complete validation
-and atomic installation, `409` when the identifier is already installed, and
-`422` for an invalid or incompatible package.
+and atomic installation of a new version, `409` for a duplicate or
+non-increasing version, and `422` for an invalid or incompatible package.
+Installed assets are served from the single active package.
 
 The exact token and layout contracts are versioned. CSS variables remain an
 implementation detail generated from tokens.

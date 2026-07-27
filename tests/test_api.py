@@ -334,6 +334,48 @@ def test_v1_theme_install_rejects_invalid_archive(tmp_path):
     assert not (tmp_path / "themes" / "com.example.bad").exists()
 
 
+def test_v1_theme_update_and_uninstall_events(tmp_path):
+    def archive(version):
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as package:
+            package.writestr(
+                "manifest.json",
+                json.dumps(
+                    {
+                        "id": "com.example.lifecycle",
+                        "name": "Lifecycle",
+                        "version": version,
+                        "apiVersion": 1,
+                        "styles": "theme.css",
+                    }
+                ),
+            )
+            package.writestr("theme.css", f":root {{ --version: {version}; }}")
+        return output.getvalue()
+
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        client.post("/api/v1/themes/install", content=archive("1.0.0"))
+        with client.websocket_connect("/api/v1/events") as socket:
+            socket.receive_json()
+            update = client.post(
+                "/api/v1/themes/install", content=archive("1.1.0")
+            )
+            updated_event = socket.receive_json()
+            uninstall = client.delete(
+                "/api/v1/themes/com.example.lifecycle"
+            )
+            uninstall_event = socket.receive_json()
+
+    assert update.status_code == 201
+    assert update.json()["operation"] == "updated"
+    assert update.json()["theme"]["version"] == "1.1.0"
+    assert updated_event["type"] == "theme.updated"
+    assert uninstall.status_code == 200
+    assert uninstall_event["type"] == "theme.uninstalled"
+
+
 def test_unversioned_api_is_not_exposed(tmp_path):
     with TestClient(
         create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")

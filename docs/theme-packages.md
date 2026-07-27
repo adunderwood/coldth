@@ -24,6 +24,11 @@ configure registered built-in presentations. Components omitted from a layout
 continue to use Coldth's default presentation, so a deliberately small package
 remains usable.
 
+Coldth stores one installed copy of each theme. A newer upload is fully
+validated in staging and then atomically replaces the installed copy. Settings
+can uninstall a theme after dependency checks. Reinstalling an older package
+is the manual recovery path; Coldth does not retain a local version history.
+
 ## Boundary
 
 A theme replaces the industrial designer. It may choose the arrangement,
@@ -401,8 +406,42 @@ curl --fail-with-body \
 ```
 
 Coldth returns `201` only after complete validation and atomic installation.
-An existing theme identifier returns `409`; replacement and uninstall are
-deliberately deferred until version activation and rollback are designed.
+An existing theme identifier accepts only a strictly newer
+`major.minor.patch` version. Re-uploading an installed version or uploading an
+older version returns `409`. The validated replacement becomes available from:
+
+```text
+/api/v1/themes/{id}/assets/{path}
+```
+
+Coldth retains only that active copy. Uninstall removes it but is rejected when
+another installed or bundled theme depends on the target. To return to an older
+release, uninstall the current package and install the older `.coldth-theme`
+file. Descriptor stylesheet URLs add the active version as a cache-busting
+query parameter; this does not create or retain another copy.
+
+Package version and compatibility are separate:
+
+- `version` orders releases of one theme package.
+- `apiVersion` identifies Coldth's complete theme contract.
+- Component identifiers such as `eq` remain stable for the lifetime of an API
+  major version.
+- Presentation identifiers carry their own major version, such as
+  `coldth.presentation/fader-ladder@1`.
+
+Coldth will not make a breaking change to a component or semantic token while
+continuing to call the contract Theme API v1. A future incompatible component
+model requires Theme API v2. A presentation may gain a new major identifier
+alongside the old implementation, allowing themes to migrate deliberately.
+This avoids both silently breaking themes and maintaining a general-purpose
+dependency solver.
+
+`extends` names a parent theme by identity, not by package-version range. A
+child follows the currently installed parent release. Parent authors must
+therefore treat inherited tokens, region identifiers, and assets as a public
+contract within that theme's major package version. Coldth validates that the
+parent exists and protects it from uninstall while children depend on it, but
+does not attempt npm-style dependency resolution.
 
 The descriptor endpoint returns the validated data used for activation:
 

@@ -66,7 +66,10 @@ component-level fallback are implemented. Single-parent inheritance now
 resolves CSS, semantic tokens, and matching layout region IDs together, with
 missing-parent and cycle rejection. Themes can physically reorder the stable
 levels, tone, and presets receiver surfaces, with safe fallback for omitted
-surfaces. Version replacement, rollback, and uninstall remain.
+surfaces. Single-copy atomic updates, semantic-version ordering,
+dependency-safe uninstall, management API events, and settings-page controls
+are implemented. Package versions order theme releases; Theme API majors and
+versioned presentation identifiers define compatibility.
 
 The first composite presentation is also implemented: Black 1987 uses the
 landscape `fader-ladder@1` tone bank to pair every EQ band with a discrete,
