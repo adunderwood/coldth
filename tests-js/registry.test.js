@@ -14,6 +14,7 @@ import {
   METERS_COMPONENT,
   NOW_PLAYING_TEXT_PRESENTATION,
   PREAMP_COMPONENT,
+  PREAMP_KNOB_PRESENTATION,
   PREAMP_SLIDER_PRESENTATION,
   PRESETS_COMPONENT,
   PRESET_SELECTOR_PRESENTATION,
@@ -38,6 +39,10 @@ test("built-in presentations resolve against semantic components", () => {
   const preamp = registry.resolve(
     PREAMP_COMPONENT,
     PREAMP_SLIDER_PRESENTATION,
+  );
+  const preampKnob = registry.resolve(
+    PREAMP_COMPONENT,
+    PREAMP_KNOB_PRESENTATION,
   );
   const spectrum = registry.resolve(
     SPECTRUM_COMPONENT,
@@ -64,6 +69,11 @@ test("built-in presentations resolve against semantic components", () => {
   assert.deepEqual(eq.options, { orientation: "responsive" });
   assert.equal(balance.component.valueType, "continuous-bipolar");
   assert.equal(preamp.component.valueType, "continuous-gain");
+  assert.equal(preampKnob.component.valueType, "continuous-gain");
+  assert.deepEqual(preampKnob.options, {
+    startAngle: -135,
+    endAngle: 135,
+  });
   assert.deepEqual(meters.options, { releasePerFrame: 0.7 });
   assert.equal(spectrum.component.valueType, "band-measurements");
   assert.equal(toneBank.component.valueType, "tone-bank-state");
@@ -86,6 +96,13 @@ test("presentation options are schema validated", () => {
         orientation: "diagonal",
       }),
     /must be one of/,
+  );
+  assert.throws(
+    () =>
+      registry.resolve(PREAMP_COMPONENT, PREAMP_KNOB_PRESENTATION, {
+        startAngle: -200,
+      }),
+    /at least/,
   );
   assert.throws(
     () =>

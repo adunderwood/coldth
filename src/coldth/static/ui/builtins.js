@@ -13,6 +13,8 @@ export const BALANCE_SLIDER_PRESENTATION =
   "coldth.presentation/horizontal-slider@1";
 export const PREAMP_SLIDER_PRESENTATION =
   "coldth.presentation/preamp-slider@1";
+export const PREAMP_KNOB_PRESENTATION =
+  "coldth.presentation/rotary-knob@1";
 export const LED_METERS_PRESENTATION = "coldth.presentation/led-bar@1";
 export const SPECTRUM_OVERLAY_PRESENTATION =
   "coldth.presentation/ten-band-overlay@1";
@@ -224,6 +226,66 @@ function mountPreampSlider({ root, context }) {
       slider.removeEventListener("input", onInput);
       root.replaceChildren();
       root.classList.remove("preamp-control");
+    },
+  };
+}
+
+function mountPreampKnob({ root, options, context }) {
+  root.dataset.component = PREAMP_COMPONENT;
+  root.dataset.presentation = PREAMP_KNOB_PRESENTATION;
+  root.className = "preamp-control rotary-control";
+  root.replaceChildren();
+
+  const label = document.createElement("label");
+  exposePart(label, "legend");
+  label.htmlFor = "preamp";
+  label.textContent = "Preamp";
+  const knob = document.createElement("div");
+  knob.className = "rotary-knob";
+  exposePart(knob, "knob");
+  const face = document.createElement("span");
+  face.className = "rotary-knob-face";
+  exposePart(face, "face");
+  const slider = document.createElement("input");
+  slider.id = "preamp";
+  slider.type = "range";
+  exposePart(slider, "control");
+  slider.min = context.range.min;
+  slider.max = context.range.max;
+  slider.step = context.range.step;
+  const output = document.createElement("output");
+  exposePart(output, "value");
+
+  let value = context.value;
+  const render = () => {
+    slider.value = value;
+    output.value = context.labelValue(value);
+    const normalized =
+      (value - context.range.min) / (context.range.max - context.range.min);
+    const angle =
+      options.startAngle +
+      normalized * (options.endAngle - options.startAngle);
+    face.style.setProperty("--knob-angle", `${angle}deg`);
+  };
+  const onInput = () => {
+    value = Number(slider.value);
+    render();
+    context.onInput(value);
+  };
+  slider.addEventListener("input", onInput);
+  knob.append(face, slider);
+  root.append(label, knob, output);
+  render();
+
+  return {
+    setValue(nextValue) {
+      value = nextValue;
+      render();
+    },
+    dispose() {
+      slider.removeEventListener("input", onInput);
+      root.replaceChildren();
+      root.classList.remove("preamp-control", "rotary-control");
     },
   };
 }
@@ -733,6 +795,28 @@ export function registerBuiltins(registry) {
     components: [PREAMP_COMPONENT],
     optionsSchema: { properties: {} },
     mount: mountPreampSlider,
+  });
+  registry.registerPresentation({
+    id: PREAMP_KNOB_PRESENTATION,
+    valueTypes: ["continuous-gain"],
+    components: [PREAMP_COMPONENT],
+    optionsSchema: {
+      properties: {
+        startAngle: {
+          type: "number",
+          minimum: -180,
+          maximum: 0,
+          default: -135,
+        },
+        endAngle: {
+          type: "number",
+          minimum: 0,
+          maximum: 180,
+          default: 135,
+        },
+      },
+    },
+    mount: mountPreampKnob,
   });
   registry.registerPresentation({
     id: LED_METERS_PRESENTATION,

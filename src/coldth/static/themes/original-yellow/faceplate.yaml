@@ -3,6 +3,13 @@ schemaVersion: "0.1"
 
 layouts:
   landscape:
+    regions:
+      - id: preamp
+        component: preamp
+        presentation: coldth.presentation/rotary-knob@1
+        options:
+          startAngle: -135
+          endAngle: 135
     hidden:
       - spectrum
     root:
@@ -39,6 +46,13 @@ layouts:
           width: fill
 
   portrait:
+    regions:
+      - id: preamp
+        component: preamp
+        presentation: coldth.presentation/rotary-knob@1
+        options:
+          startAngle: -135
+          endAngle: 135
     hidden:
       - spectrum
     root:

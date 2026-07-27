@@ -4,6 +4,12 @@ schemaVersion: "0.1"
 layouts:
   landscape:
     regions:
+      - id: preamp
+        component: preamp
+        presentation: coldth.presentation/rotary-knob@1
+        options:
+          startAngle: -135
+          endAngle: 135
       - id: tone-bank
         component: tone-bank
         presentation: coldth.presentation/fader-ladder@1
@@ -47,6 +53,12 @@ layouts:
 
   portrait:
     regions:
+      - id: preamp
+        component: preamp
+        presentation: coldth.presentation/rotary-knob@1
+        options:
+          startAngle: -135
+          endAngle: 135
       - id: tone
         component: eq
         presentation: coldth.presentation/vertical-fader@1

@@ -62,6 +62,8 @@ activated.
 ```text
 eq       → coldth.presentation/vertical-fader@1
 balance  → coldth.presentation/horizontal-slider@1
+preamp   → coldth.presentation/preamp-slider@1
+preamp   → coldth.presentation/rotary-knob@1
 stereo-meters → coldth.presentation/led-bar@1
 spectrum → coldth.presentation/ten-band-overlay@1
 tone-bank → coldth.presentation/fader-ladder@1
@@ -83,6 +85,7 @@ should prefer the documented parts:
 ```text
 meters      channel, channel-label, track, fill, peak, value
 balance     left-label, right-label, legend, control, value
+preamp      legend, control, value, knob, face
 spectrum    status
 track-info  state, title, byline
 album-art   image

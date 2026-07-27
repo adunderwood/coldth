@@ -1,5 +1,6 @@
 :root {
   --theme-name: "Original Yellow";
+  --meter-warm: #f2ae3f;
 }
 
 @media (orientation: landscape) {

@@ -304,6 +304,7 @@ safely.
 
 Add Coldth-owned built-in presentations for:
 
+- a preamp rotary knob (implemented and used by both bundled faceplates);
 - a ten-band rotary EQ knob bank;
 - rotary balance; and
 - stereo analog VU meters.

@@ -211,19 +211,17 @@ platform defaults and user preferences, not from the theme.
 
 ```json
 {
-  "component": "balance",
+  "component": "preamp",
   "presentation": "coldth.presentation/rotary-knob@1",
   "options": {
     "startAngle": -135,
-    "endAngle": 135,
-    "indicator": "assets/indicators/white-line.svg",
-    "size": 92
+    "endAngle": 135
   }
 }
 ```
 
-The component maps the public balance range `-100..100` to a normalized
-`0..1`, then maps that value to the configured angle:
+The component maps the public preamp range to a normalized `0..1`, then maps
+that value to the configured angle:
 
 ```text
 angle = startAngle + normalizedValue × (endAngle - startAngle)
@@ -243,10 +241,10 @@ The runtime chooses a sensible platform default. A user preference may
 override it globally. Themes cannot change the interaction mode, drag
 sensitivity, keyboard behavior, or accessibility semantics.
 
-For example, the built-in `rotary-knob@1` option schema can permit
-`startAngle`, `endAngle`, `indicator`, and `size`, while rejecting an unknown
-option such as `rotationSpeed`. Interaction settings belong to Coldth's client
-preferences schema instead.
+The built-in `rotary-knob@1` currently permits `startAngle` and `endAngle`
+while rejecting an unknown option such as `rotationSpeed`. Its public styling
+parts are `legend`, `knob`, `face`, `control`, and `value`. Interaction
+settings belong to Coldth's client preferences schema instead.
 
 ### Linear control
 

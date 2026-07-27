@@ -39,7 +39,7 @@ HIDEABLE_SURFACE_IDS = {"meters", "spectrum", "track-info", "album-art"}
 SURFACE_PARTS = {
     "meters": {"channel", "channel-label", "track", "fill", "peak", "value"},
     "balance": {"left-label", "right-label", "legend", "control", "value"},
-    "preamp": {"legend", "control", "value"},
+    "preamp": {"legend", "control", "value", "knob", "face"},
     "spectrum": {"status"},
     "track-info": {"state", "title", "byline"},
     "album-art": {"image"},
@@ -70,7 +70,10 @@ SURFACE_PARTS = {
 COMPONENT_PRESENTATIONS = {
     "eq": {"coldth.presentation/vertical-fader@1"},
     "balance": {"coldth.presentation/horizontal-slider@1"},
-    "preamp": {"coldth.presentation/preamp-slider@1"},
+    "preamp": {
+        "coldth.presentation/preamp-slider@1",
+        "coldth.presentation/rotary-knob@1",
+    },
     "stereo-meters": {"coldth.presentation/led-bar@1"},
     "spectrum": {"coldth.presentation/ten-band-overlay@1"},
     "tone-bank": {"coldth.presentation/fader-ladder@1"},
@@ -89,6 +92,10 @@ PRESENTATION_OPTIONS: dict[str, dict[str, tuple[type, Any]]] = {
     "coldth.presentation/fader-ladder@1": {
         "orientation": (str, {"responsive", "vertical", "horizontal"}),
         "segments": (int, (8, 40)),
+    },
+    "coldth.presentation/rotary-knob@1": {
+        "startAngle": (int | float, (-180.0, 0.0)),
+        "endAngle": (int | float, (0.0, 180.0)),
     },
 }
 
