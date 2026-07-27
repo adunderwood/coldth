@@ -136,6 +136,29 @@ empty-group collapse, safe fallback, inheritance, and bundled landscape and
 portrait layouts are implemented. Original Yellow and Black 1987 both use
 `stereo` and `now-playing` chassis.
 
+### 3a. Generalize surface groups into auto-layout frames
+
+Treat the faceplate as a root frame and surface groups as nested frames rather
+than adding more one-off container types. Borrow the small, useful subset of
+Figma auto layout:
+
+- recursive frames containing frames or trusted surface references;
+- row or column direction;
+- gap and padding;
+- start, center, end, and space-between distribution;
+- start, center, end, and stretch alignment;
+- optional wrapping; and
+- fixed, hug-content, and fill-container sizing.
+
+Controls remain trusted leaves. Theme packages may arrange and style them but
+may not supply executable controls or arbitrary application markup. Keep the
+layout vocabulary declarative and bounded; absolute positioning, constraints,
+and freeform transforms are intentionally outside the first contract.
+
+This supersedes the flat `groups` shape once the recursive contract is proven.
+During the unstable v1 period, bundled themes can migrate directly without a
+legacy compatibility layer.
+
 ### 4. Standalone ten-band spectrum panel
 
 Add a built-in spectrum presentation that renders the existing honest

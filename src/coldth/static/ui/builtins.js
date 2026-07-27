@@ -22,6 +22,25 @@ export const ALBUM_ARTWORK_PRESENTATION =
 export const PRESET_SELECTOR_PRESENTATION =
   "coldth.presentation/preset-selector@1";
 
+export function nowPlayingTextState(value = {}) {
+  const metadata = value.metadata || {};
+  const transport = value.transport || {};
+  const hasMetadata = Boolean(
+    metadata.title || metadata.artist || metadata.album,
+  );
+  const available = hasMetadata || transport.state === "playing";
+  return {
+    available,
+    state: transport.state === "playing" ? "Now playing" : "AirPlay",
+    title: hasMetadata
+      ? metadata.title || "Unknown track"
+      : "Waiting for track information",
+    byline: hasMetadata
+      ? [metadata.artist, metadata.album].filter(Boolean).join(" · ")
+      : "Audio is playing",
+  };
+}
+
 function mountEqFaders({ root, options, context }) {
   const listeners = [];
   const sliders = new Map();
@@ -338,16 +357,12 @@ function mountNowPlayingText({ root, context }) {
 
   return {
     setValue(value = {}) {
-      const metadata = value.metadata || {};
-      const transport = value.transport || {};
-      const available = Boolean(metadata.title || metadata.artist || metadata.album);
-      context.onAvailability(available);
-      if (!available) return;
-      title.textContent = metadata.title || "Unknown track";
-      byline.textContent = [metadata.artist, metadata.album]
-        .filter(Boolean)
-        .join(" · ");
-      state.textContent = transport.state === "playing" ? "Now playing" : "AirPlay";
+      const display = nowPlayingTextState(value);
+      context.onAvailability(display.available);
+      if (!display.available) return;
+      title.textContent = display.title;
+      byline.textContent = display.byline;
+      state.textContent = display.state;
     },
     dispose() {
       context.onAvailability(false);

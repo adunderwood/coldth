@@ -89,3 +89,46 @@ Implemented flat declarative surface groups. Original Yellow and Black 1987
 now group meters with balance and artwork with track information. Landscape
 uses row groups; portrait uses column groups. The component ownership model
 did not need to change.
+
+## 2026-07-27 — Flat groups are already becoming frames
+
+**Wanted**
+
+Compose substantially different faceplates without adding a new container
+type for every arrangement.
+
+**Observed friction**
+
+A flat group can share one chassis, but it cannot describe a composed
+faceplate. Themes will need nested groups, spacing, alignment, wrapping, and
+content/container sizing.
+
+**Suspected boundary**
+
+Generalize the faceplate and its groups into a bounded, declarative auto-layout
+frame tree. Use trusted surfaces as leaves. Do not add arbitrary HTML or
+executable layout code.
+
+**Seen in**
+
+- Original Yellow
+- Black 1987
+- anticipated 1969 faceplate
+
+## 2026-07-27 — Metadata availability is transitional
+
+**Wanted**
+
+Keep the now-playing chassis stable while an AirPlay session starts or changes
+tracks.
+
+**Observed friction**
+
+AirPlay may report active playback before the next title, artist, or album
+record arrives. Treating absent text as an unavailable component caused the
+entire now-playing group to disappear during that transition.
+
+**Resolution**
+
+Keep track information visible while transport is playing and show an honest
+waiting state. Artwork remains independently optional.
