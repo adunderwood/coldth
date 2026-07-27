@@ -8,18 +8,25 @@ layouts:
       direction: column
       gap: 16
       children:
-        - frame: stereo
+        - frame: monitoring
           direction: row
-          gap: 32
-          padding: 32
+          gap: 16
+          align: stretch
           children:
-            - surface: meters
+            - frame: stereo
+              direction: column
+              gap: 24
+              padding: 32
               width: fill
-            - surface: balance
-              width: fill
+              children:
+                - surface: meters
+                  width: fill
+                - surface: balance
+                  width: fill
 
-        - surface: spectrum
-          width: fill
+            - surface: spectrum
+              width: 300
+              height: fill
 
         - frame: now-playing
           direction: row
@@ -27,7 +34,7 @@ layouts:
           padding: 32
           children:
             - surface: album-art
-              width: 320
+              width: 180
             - surface: track-info
               width: fill
 
@@ -63,7 +70,7 @@ layouts:
           align: stretch
           children:
             - surface: album-art
-              width: fill
+              width: 160
             - surface: track-info
               width: fill
 

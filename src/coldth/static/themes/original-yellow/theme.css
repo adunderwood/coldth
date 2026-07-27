@@ -1,3 +1,10 @@
 :root {
   --theme-name: "Original Yellow";
 }
+
+[data-faceplate="original-yellow"] [data-frame="monitoring"] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}

@@ -446,6 +446,21 @@ sudo grep -R -nE 'output_backend|output_device|output_rate|output_format' \
   /etc/shairport-sync.conf /etc/shairport-sync.conf.d 2>/dev/null
 ```
 
+### Audio and meters work but current song details are absent
+
+Shairport Sync sends title, artist, album, transport, and artwork as events; it
+does not provide Coldth with a query for the currently playing metadata. If
+Coldth starts or restarts in the middle of an existing AirPlay track, it may
+have working audio and live meters but no song details in memory.
+
+Changing tracks normally causes the sender to emit a fresh metadata sequence,
+after which the now-playing panel returns. This is expected for a mid-track
+Coldth restart and does not indicate a faceplate, audio, or metadata-pipe
+configuration failure.
+
+If details remain absent after changing tracks, confirm metadata is enabled in
+Coldth Settings and revisit the shared metadata FIFO configuration above.
+
 ### Audio is almost inaudible
 
 Read CamillaDSP's global volume:

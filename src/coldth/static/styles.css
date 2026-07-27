@@ -223,9 +223,18 @@ header {
   justify-content: space-between;
 }
 
-[data-width="fill"] {
+[data-direction="row"] > [data-width="fill"],
+[data-direction="column"] > [data-height="fill"] {
   flex: 1 1 0;
+}
+
+[data-width="fill"] {
   min-width: 0;
+}
+
+[data-direction="column"] > [data-width="fill"],
+[data-direction="row"] > [data-height="fill"] {
+  align-self: stretch;
 }
 
 [data-width="hug"] {
