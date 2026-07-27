@@ -109,3 +109,14 @@ body {
   color: #89ffb9;
   box-shadow: inset 0 0 12px #4aff9422;
 }
+
+@media (orientation: landscape) {
+  [data-faceplate="black-1987"] [data-frame="now-playing"] .track-info span,
+  [data-faceplate="black-1987"] [data-frame="now-playing"] .track-info small {
+    font-size: 0.74rem;
+  }
+
+  [data-faceplate="black-1987"] [data-frame="now-playing"] .track-info strong {
+    font-size: 1.1rem;
+  }
+}
