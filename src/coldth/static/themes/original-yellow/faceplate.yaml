@@ -16,7 +16,7 @@ layouts:
           padding: 32
           children:
             - surface: album-art
-              width: 96
+              width: 64
             - surface: track-info
               width: fill
 
@@ -51,7 +51,7 @@ layouts:
           align: stretch
           children:
             - surface: album-art
-              width: 96
+              width: 64
             - surface: track-info
               width: fill
 
