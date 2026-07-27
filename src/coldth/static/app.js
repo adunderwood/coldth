@@ -37,7 +37,10 @@ const layoutSurfaces = new Map(
     surface,
   ]),
 );
-const layoutGroupElements = new Map();
+for (const [surface, element] of layoutSurfaces) {
+  element.dataset.surface = surface;
+}
+const layoutFrameElements = new Map();
 
 let bands = {};
 let balance = 0;
@@ -171,6 +174,7 @@ async function initializeThemes() {
 function applyThemeDescriptor(descriptor) {
   const option = themeList.selectedOptions[0];
   if (!option || descriptor.id !== option.value) return;
+  receiverLayout.dataset.faceplate = descriptor.id;
   const stylesheets = descriptor.stylesheets || [descriptor.stylesheet];
   document
     .querySelectorAll('link[data-inherited-theme-stylesheet="true"]')
@@ -429,10 +433,33 @@ function applySurfaceFlow(descriptor) {
   const layout = activeLayout(descriptor);
   for (const surface of DEFAULT_SURFACE_FLOW) {
     const element = layoutSurfaces.get(surface);
-    if (element) receiverLayout.append(element);
+    if (element) {
+      resetAutoLayout(element);
+      receiverLayout.append(element);
+    }
   }
-  for (const group of layoutGroupElements.values()) group.remove();
-  layoutGroupElements.clear();
+  for (const frame of layoutFrameElements.values()) frame.remove();
+  layoutFrameElements.clear();
+  resetAutoLayout(receiverLayout);
+  layoutHiddenSurfaces = new Set(layout?.hidden || []);
+
+  if (layout?.frame) {
+    const placedSurfaces = new Set();
+    configureAutoLayout(receiverLayout, layout.frame);
+    for (const child of layout.frame.children) {
+      const element = buildLayoutNode(child, placedSurfaces);
+      if (element) receiverLayout.append(element);
+    }
+    for (const surface of DEFAULT_SURFACE_FLOW) {
+      if (!placedSurfaces.has(surface)) {
+        const element = layoutSurfaces.get(surface);
+        if (element) receiverLayout.append(element);
+      }
+    }
+    receiverLayout.dataset.flow = "faceplate";
+    syncSurfaceVisibility();
+    return;
+  }
 
   const groups = layout?.groups || [];
   const groupForSurface = new Map();
@@ -448,7 +475,7 @@ function applySurfaceFlow(descriptor) {
         groupForSurface.set(surface, group.id);
       }
     }
-    layoutGroupElements.set(group.id, element);
+    layoutFrameElements.set(group.id, element);
   }
 
   const requested = layout?.flow || [];
@@ -461,13 +488,93 @@ function applySurfaceFlow(descriptor) {
     ...requested,
     ...fallback.filter((item) => !requested.includes(item)),
   ];
-  layoutHiddenSurfaces = new Set(layout?.hidden || []);
   for (const item of flow) {
-    const element = layoutGroupElements.get(item) || layoutSurfaces.get(item);
+    const element = layoutFrameElements.get(item) || layoutSurfaces.get(item);
     if (element) receiverLayout.append(element);
   }
   receiverLayout.dataset.flow = flow.join(" ");
   syncSurfaceVisibility();
+}
+
+function resetAutoLayout(element) {
+  for (const name of [
+    "autoLayout",
+    "frame",
+    "direction",
+    "align",
+    "justify",
+    "wrap",
+    "width",
+    "height",
+  ]) {
+    delete element.dataset[name];
+  }
+  for (const property of [
+    "--frame-gap",
+    "--frame-padding",
+    "--frame-width",
+    "--frame-height",
+  ]) {
+    element.style.removeProperty(property);
+  }
+}
+
+function cssSize(value) {
+  return typeof value === "number" ? `${value}px` : value;
+}
+
+function cssPadding(value) {
+  const values = Array.isArray(value) ? value : [value];
+  return values.map((item) => `${item}px`).join(" ");
+}
+
+function configureAutoLayout(element, node) {
+  element.dataset.autoLayout = "true";
+  element.dataset.frame = node.id;
+  element.dataset.direction = node.direction;
+  element.dataset.align = node.align;
+  element.dataset.justify = node.justify;
+  element.dataset.wrap = String(node.wrap);
+  element.style.setProperty("--frame-gap", `${node.gap}px`);
+  element.style.setProperty("--frame-padding", cssPadding(node.padding));
+  for (const dimension of ["width", "height"]) {
+    const value = node[dimension];
+    if (value === undefined) continue;
+    element.dataset[dimension] = String(value);
+    if (typeof value === "number") {
+      element.style.setProperty(`--frame-${dimension}`, cssSize(value));
+    }
+  }
+}
+
+function configureNodeSize(element, node) {
+  for (const dimension of ["width", "height"]) {
+    const value = node[dimension];
+    if (value === undefined) continue;
+    element.dataset[dimension] = String(value);
+    if (typeof value === "number") {
+      element.style.setProperty(`--frame-${dimension}`, cssSize(value));
+    }
+  }
+}
+
+function buildLayoutNode(node, placedSurfaces) {
+  if (node.type === "surface") {
+    const surface = layoutSurfaces.get(node.id);
+    if (!surface) return null;
+    placedSurfaces.add(node.id);
+    configureNodeSize(surface, node);
+    return surface;
+  }
+  const frame = document.createElement("div");
+  frame.className = "faceplate-frame";
+  configureAutoLayout(frame, node);
+  for (const child of node.children) {
+    const element = buildLayoutNode(child, placedSurfaces);
+    if (element) frame.append(element);
+  }
+  layoutFrameElements.set(node.id, frame);
+  return frame;
 }
 
 function syncSurfaceVisibility() {
@@ -476,8 +583,8 @@ function syncSurfaceVisibility() {
       layoutHiddenSurfaces.has(surface) ||
       surfaceAvailability.get(surface) === false;
   }
-  for (const group of layoutGroupElements.values()) {
-    group.hidden = [...group.children].every((surface) => surface.hidden);
+  for (const frame of [...layoutFrameElements.values()].reverse()) {
+    frame.hidden = [...frame.children].every((child) => child.hidden);
   }
 }
 

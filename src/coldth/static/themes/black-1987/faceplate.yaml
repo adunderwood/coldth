@@ -1,0 +1,84 @@
+language: coldth.faceplate
+schemaVersion: "0.1"
+
+layouts:
+  landscape:
+    regions:
+      - id: tone-bank
+        component: tone-bank
+        presentation: coldth.presentation/fader-ladder@1
+        options:
+          orientation: vertical
+          segments: 24
+    hidden:
+      - spectrum
+    root:
+      frame: receiver
+      direction: column
+      gap: 16
+      children:
+        - frame: stereo
+          direction: row
+          gap: 32
+          padding: 32
+          children:
+            - surface: meters
+              width: fill
+            - surface: balance
+              width: fill
+
+        - frame: now-playing
+          direction: row
+          gap: 24
+          padding: 32
+          children:
+            - surface: album-art
+              width: 320
+            - surface: track-info
+              width: fill
+
+        - surface: tone
+          width: fill
+
+        - surface: presets
+          width: fill
+
+  portrait:
+    regions:
+      - id: tone
+        component: eq
+        presentation: coldth.presentation/vertical-fader@1
+        options:
+          orientation: horizontal
+    hidden:
+      - spectrum
+    root:
+      frame: receiver
+      direction: column
+      gap: 16
+      children:
+        - frame: stereo
+          direction: column
+          gap: 24
+          padding: 24
+          children:
+            - surface: meters
+              width: fill
+            - surface: balance
+              width: fill
+
+        - frame: now-playing
+          direction: column
+          gap: 20
+          padding: 24
+          children:
+            - surface: album-art
+              width: fill
+            - surface: track-info
+              width: fill
+
+        - surface: tone
+          width: fill
+
+        - surface: presets
+          width: fill

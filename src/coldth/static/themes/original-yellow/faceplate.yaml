@@ -1,0 +1,74 @@
+language: coldth.faceplate
+schemaVersion: "0.1"
+
+layouts:
+  landscape:
+    root:
+      frame: receiver
+      direction: column
+      gap: 16
+      children:
+        - frame: stereo
+          direction: row
+          gap: 32
+          padding: 32
+          children:
+            - surface: meters
+              width: fill
+            - surface: balance
+              width: fill
+
+        - surface: spectrum
+          width: fill
+
+        - frame: now-playing
+          direction: row
+          gap: 24
+          padding: 32
+          children:
+            - surface: album-art
+              width: 320
+            - surface: track-info
+              width: fill
+
+        - surface: tone
+          width: fill
+
+        - surface: presets
+          width: fill
+
+  portrait:
+    root:
+      frame: receiver
+      direction: column
+      gap: 16
+      children:
+        - frame: stereo
+          direction: column
+          gap: 24
+          padding: 24
+          children:
+            - surface: meters
+              width: fill
+            - surface: balance
+              width: fill
+
+        - surface: spectrum
+          width: fill
+
+        - frame: now-playing
+          direction: column
+          gap: 20
+          padding: 24
+          align: stretch
+          children:
+            - surface: album-art
+              width: fill
+            - surface: track-info
+              width: fill
+
+        - surface: tone
+          width: fill
+
+        - surface: presets
+          width: fill

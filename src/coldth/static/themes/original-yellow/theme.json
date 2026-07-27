@@ -2,8 +2,5 @@
   "id": "original-yellow",
   "name": "Original Yellow",
   "description": "Coldth's original acid-yellow faceplate.",
-  "layouts": {
-    "landscape": "landscape.json",
-    "portrait": "portrait.json"
-  }
+  "faceplate": "faceplate.yaml"
 }

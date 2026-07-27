@@ -41,6 +41,11 @@ export function nowPlayingTextState(value = {}) {
   };
 }
 
+function exposePart(element, name) {
+  element.dataset.part = name;
+  return element;
+}
+
 function mountEqFaders({ root, options, context }) {
   const listeners = [];
   const sliders = new Map();
@@ -56,15 +61,20 @@ function mountEqFaders({ root, options, context }) {
     const key = String(frequency);
     const band = document.createElement("div");
     band.className = "band";
+    exposePart(band, "band");
     const output = document.createElement("output");
+    exposePart(output, "value");
     output.value = context.labelValue(value[key]);
     const wrap = document.createElement("div");
     wrap.className = "slider-wrap";
+    exposePart(wrap, "track");
     const level = document.createElement("span");
     level.className = "band-level";
+    exposePart(level, "level");
     level.setAttribute("aria-hidden", "true");
     const slider = document.createElement("input");
     slider.type = "range";
+    exposePart(slider, "control");
     slider.min = context.range.min;
     slider.max = context.range.max;
     slider.step = context.range.step;
@@ -78,6 +88,7 @@ function mountEqFaders({ root, options, context }) {
     slider.addEventListener("input", onInput);
     listeners.push(() => slider.removeEventListener("input", onInput));
     const label = document.createElement("label");
+    exposePart(label, "label");
     label.textContent = context.labelFrequency(frequency);
     wrap.append(level, slider);
     band.append(output, wrap, label);
@@ -113,19 +124,24 @@ function mountBalanceSlider({ root, context }) {
   root.replaceChildren();
 
   const left = document.createElement("span");
+  exposePart(left, "left-label");
   left.textContent = "L";
   const right = document.createElement("span");
+  exposePart(right, "right-label");
   right.textContent = "R";
   const label = document.createElement("label");
   const legend = document.createElement("span");
+  exposePart(legend, "legend");
   legend.textContent = "Balance";
   const slider = document.createElement("input");
   slider.id = "balance";
   slider.type = "range";
+  exposePart(slider, "control");
   slider.min = context.range.min;
   slider.max = context.range.max;
   slider.step = context.range.step;
   const output = document.createElement("output");
+  exposePart(output, "value");
   output.id = "balance-value";
 
   let value = context.value;
@@ -170,18 +186,24 @@ function mountLedMeters({ root, options, context }) {
   const rows = [0, 1].map((channel) => {
     const row = document.createElement("div");
     row.className = "meter-row";
+    exposePart(row, "channel");
     row.dataset.channel = channel;
     const label = document.createElement("span");
     label.className = "channel-label";
+    exposePart(label, "channel-label");
     label.textContent = channel === 0 ? "L" : "R";
     const track = document.createElement("div");
     track.className = "meter-track";
+    exposePart(track, "track");
     const fill = document.createElement("span");
     fill.className = "meter-fill";
+    exposePart(fill, "fill");
     const peak = document.createElement("i");
     peak.className = "peak-marker";
+    exposePart(peak, "peak");
     track.append(fill, peak);
     const output = document.createElement("output");
+    exposePart(output, "value");
     output.value = "−∞";
     row.append(label, track, output);
     root.append(row);
@@ -217,6 +239,7 @@ function mountSpectrumOverlay({ root, context }) {
   root.dataset.presentation = SPECTRUM_OVERLAY_PRESENTATION;
   const status = document.createElement("div");
   status.className = "analyzer-status";
+  exposePart(status, "status");
   root.append(status);
 
   const render = (levels) => {
@@ -262,12 +285,16 @@ function mountFaderLadder({ root, options, context }) {
     const key = String(frequency);
     const strip = document.createElement("div");
     strip.className = "tone-strip";
+    exposePart(strip, "band");
     const output = document.createElement("output");
+    exposePart(output, "value");
     output.value = context.labelValue(bands[key]);
     const control = document.createElement("div");
     control.className = "tone-strip-control";
+    exposePart(control, "control-group");
     const slider = document.createElement("input");
     slider.type = "range";
+    exposePart(slider, "control");
     slider.min = context.range.min;
     slider.max = context.range.max;
     slider.step = context.range.step;
@@ -275,12 +302,15 @@ function mountFaderLadder({ root, options, context }) {
     slider.setAttribute("aria-label", `${frequency} hertz`);
     const fader = document.createElement("div");
     fader.className = "tone-fader";
+    exposePart(fader, "track");
     fader.append(slider);
     const ladder = document.createElement("div");
     ladder.className = "level-ladder";
+    exposePart(ladder, "ladder");
     ladder.setAttribute("aria-hidden", "true");
     const segments = Array.from({ length: options.segments }, (_, index) => {
       const segment = document.createElement("i");
+      exposePart(segment, "segment");
       segment.style.setProperty(
         "--segment-position",
         `${index / Math.max(1, options.segments - 1)}`,
@@ -292,6 +322,7 @@ function mountFaderLadder({ root, options, context }) {
       return segment;
     });
     const label = document.createElement("label");
+    exposePart(label, "label");
     label.textContent = context.labelFrequency(frequency);
     const onInput = () => {
       bands = { ...bands, [key]: Number(slider.value) };
@@ -351,8 +382,11 @@ function mountNowPlayingText({ root, context }) {
   root.className = "track-info";
   root.replaceChildren();
   const state = document.createElement("span");
+  exposePart(state, "state");
   const title = document.createElement("strong");
+  exposePart(title, "title");
   const byline = document.createElement("small");
+  exposePart(byline, "byline");
   root.append(state, title, byline);
 
   return {
@@ -377,6 +411,7 @@ function mountAlbumArtwork({ root, context }) {
   root.className = "album-art";
   root.replaceChildren();
   const artwork = document.createElement("img");
+  exposePart(artwork, "image");
   artwork.alt = "";
   root.append(artwork);
   let fingerprint = "";
@@ -416,6 +451,7 @@ function mountPresetSelector({ root, context }) {
 
   const heading = document.createElement("div");
   heading.className = "section-heading";
+  exposePart(heading, "heading");
   const headingText = document.createElement("div");
   const eyebrow = document.createElement("p");
   eyebrow.className = "eyebrow";
@@ -426,19 +462,26 @@ function mountPresetSelector({ root, context }) {
   headingText.append(eyebrow, title);
   const save = document.createElement("button");
   save.className = "primary-button";
+  exposePart(save, "save");
   save.type = "button";
   save.textContent = "Save current";
   heading.append(headingText, save);
 
   const controls = document.createElement("div");
   controls.className = "preset-controls";
+  exposePart(controls, "controls");
   const list = document.createElement("select");
+  exposePart(list, "list");
   list.setAttribute("aria-label", "Choose preset");
   const load = button("Load");
+  exposePart(load, "load");
   const exportButton = button("Export");
+  exposePart(exportButton, "export");
   const remove = button("Delete", "danger-button");
+  exposePart(remove, "delete");
   const importLabel = document.createElement("label");
   importLabel.className = "import-button";
+  exposePart(importLabel, "import");
   importLabel.textContent = "Import";
   const importInput = document.createElement("input");
   importInput.type = "file";
@@ -447,6 +490,7 @@ function mountPresetSelector({ root, context }) {
   controls.append(list, load, exportButton, remove, importLabel);
 
   const dialog = document.createElement("dialog");
+  exposePart(dialog, "save-dialog");
   const form = document.createElement("form");
   form.method = "dialog";
   const dialogEyebrow = document.createElement("p");

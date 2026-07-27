@@ -12,7 +12,11 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from xml.etree import ElementTree
 
+import yaml
+
 THEME_API_VERSION = 1
+FACEPLATE_LANGUAGE = "coldth.faceplate"
+FACEPLATE_SCHEMA_VERSION = "0.1"
 MAX_ARCHIVE_BYTES = 8 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 12 * 1024 * 1024
 MAX_FILE_BYTES = 4 * 1024 * 1024
@@ -31,6 +35,35 @@ SURFACE_IDS = {
     "presets",
 }
 HIDEABLE_SURFACE_IDS = {"meters", "spectrum", "track-info", "album-art"}
+SURFACE_PARTS = {
+    "meters": {"channel", "channel-label", "track", "fill", "peak", "value"},
+    "balance": {"left-label", "right-label", "legend", "control", "value"},
+    "spectrum": {"status"},
+    "track-info": {"state", "title", "byline"},
+    "album-art": {"image"},
+    "tone": {
+        "band",
+        "value",
+        "track",
+        "level",
+        "control-group",
+        "control",
+        "ladder",
+        "segment",
+        "label",
+    },
+    "presets": {
+        "heading",
+        "save",
+        "controls",
+        "list",
+        "load",
+        "export",
+        "delete",
+        "import",
+        "save-dialog",
+    },
+}
 
 COMPONENT_PRESENTATIONS = {
     "eq": {"coldth.presentation/vertical-fader@1"},
@@ -59,6 +92,8 @@ PRESENTATION_OPTIONS: dict[str, dict[str, tuple[type, Any]]] = {
 ALLOWED_SUFFIXES = {
     ".css",
     ".json",
+    ".yaml",
+    ".yml",
     ".md",
     ".png",
     ".jpg",
@@ -176,6 +211,7 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         "extends",
         "styles",
         "preview",
+        "faceplate",
         "layouts",
         "requires",
         "tokens",
@@ -224,6 +260,12 @@ def validate_manifest(value: Any) -> dict[str, Any]:
             "preview",
             suffixes={".png", ".jpg", ".jpeg", ".webp"},
         )
+    if value.get("faceplate") is not None:
+        manifest["faceplate"] = _package_path(
+            value["faceplate"],
+            "faceplate",
+            suffixes={".yaml", ".yml"},
+        )
 
     layouts = value.get("layouts", {})
     if not isinstance(layouts, dict) or set(layouts) - {"landscape", "portrait"}:
@@ -232,6 +274,8 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         name: _package_path(path, f"layouts.{name}", suffixes={".json"})
         for name, path in layouts.items()
     }
+    if manifest.get("faceplate") and manifest["layouts"]:
+        raise ThemePackageError("manifest must use faceplate or layouts, not both")
     return manifest
 
 
@@ -396,6 +440,272 @@ def validate_layout(value: Any) -> dict[str, Any]:
     return layout
 
 
+def _faceplate_number(
+    value: Any,
+    path: str,
+    *,
+    maximum: float,
+) -> int | float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ThemePackageError(f"{path} must be a number")
+    if not 0 <= value <= maximum:
+        raise ThemePackageError(f"{path} must be between 0 and {maximum:g}")
+    return value
+
+
+def _faceplate_size(value: Any, path: str) -> str | int | float:
+    if isinstance(value, str) and value in {"fill", "hug"}:
+        return value
+    return _faceplate_number(value, path, maximum=4096)
+
+
+def _faceplate_padding(value: Any, path: str) -> int | float | list[int | float]:
+    if isinstance(value, list):
+        if len(value) not in {2, 4}:
+            raise ThemePackageError(f"{path} must contain two or four numbers")
+        return [
+            _faceplate_number(item, f"{path}[{index}]", maximum=256)
+            for index, item in enumerate(value)
+        ]
+    return _faceplate_number(value, path, maximum=256)
+
+
+def _validate_faceplate_node(
+    value: Any,
+    path: str,
+    *,
+    depth: int,
+    frame_ids: set[str],
+    surface_ids: set[str],
+    seen: set[int],
+    node_count: list[int],
+) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ThemePackageError(f"{path} must be an object")
+    if id(value) in seen:
+        raise ThemePackageError(f"{path} contains a recursive YAML alias")
+    seen.add(id(value))
+    node_count[0] += 1
+    if depth > 8 or node_count[0] > 64:
+        raise ThemePackageError("faceplate frame tree is too large")
+
+    node_types = {"frame", "surface"} & set(value)
+    if len(node_types) != 1:
+        raise ThemePackageError(f"{path} must declare exactly one frame or surface")
+    node_type = next(iter(node_types))
+
+    common_fields = {"width", "height"}
+    if node_type == "surface":
+        unknown = set(value) - {"surface", *common_fields}
+        if unknown:
+            raise ThemePackageError(
+                f"Unknown field at {path}: {sorted(unknown)[0]}"
+            )
+        surface = _require_text(value["surface"], f"{path}.surface", maximum=80)
+        if surface not in SURFACE_IDS:
+            raise ThemePackageError(f"Unknown surface at {path}: {surface}")
+        if surface in surface_ids:
+            raise ThemePackageError(f"Duplicate surface at {path}: {surface}")
+        surface_ids.add(surface)
+        result: dict[str, Any] = {"type": "surface", "id": surface}
+    else:
+        allowed = {
+            "frame",
+            "direction",
+            "gap",
+            "padding",
+            "align",
+            "justify",
+            "wrap",
+            "children",
+            *common_fields,
+        }
+        unknown = set(value) - allowed
+        if unknown:
+            raise ThemePackageError(
+                f"Unknown field at {path}: {sorted(unknown)[0]}"
+            )
+        frame = _require_text(value["frame"], f"{path}.frame", maximum=80)
+        if (
+            not REGION_ID.fullmatch(frame)
+            or frame in frame_ids
+            or frame in SURFACE_IDS
+        ):
+            raise ThemePackageError(f"Invalid or duplicate frame at {path}: {frame}")
+        frame_ids.add(frame)
+        direction = value.get("direction", "column")
+        if direction not in {"row", "column"}:
+            raise ThemePackageError(f"{path}.direction must be row or column")
+        align = value.get("align", "stretch")
+        if align not in {"start", "center", "end", "stretch"}:
+            raise ThemePackageError(
+                f"{path}.align must be start, center, end, or stretch"
+            )
+        justify = value.get("justify", "start")
+        if justify not in {"start", "center", "end", "space-between"}:
+            raise ThemePackageError(
+                f"{path}.justify has an unsupported value"
+            )
+        wrap = value.get("wrap", False)
+        if type(wrap) is not bool:
+            raise ThemePackageError(f"{path}.wrap must be true or false")
+        children = value.get("children")
+        if not isinstance(children, list) or not children:
+            raise ThemePackageError(f"{path}.children must be a non-empty array")
+        result = {
+            "type": "frame",
+            "id": frame,
+            "direction": direction,
+            "gap": _faceplate_number(value.get("gap", 0), f"{path}.gap", maximum=256),
+            "padding": _faceplate_padding(
+                value.get("padding", 0), f"{path}.padding"
+            ),
+            "align": align,
+            "justify": justify,
+            "wrap": wrap,
+            "children": [
+                _validate_faceplate_node(
+                    child,
+                    f"{path}.children[{index}]",
+                    depth=depth + 1,
+                    frame_ids=frame_ids,
+                    surface_ids=surface_ids,
+                    seen=seen,
+                    node_count=node_count,
+                )
+                for index, child in enumerate(children)
+            ],
+        }
+
+    for field in common_fields:
+        if field in value:
+            result[field] = _faceplate_size(value[field], f"{path}.{field}")
+    return result
+
+
+def validate_faceplate(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ThemePackageError("faceplate document must contain an object")
+    unknown = set(value) - {"language", "schemaVersion", "layouts"}
+    if unknown:
+        raise ThemePackageError(
+            f"Unknown faceplate document field: {sorted(unknown)[0]}"
+        )
+    if value.get("language") != FACEPLATE_LANGUAGE:
+        raise ThemePackageError(f"language must be {FACEPLATE_LANGUAGE}")
+    if value.get("schemaVersion") != FACEPLATE_SCHEMA_VERSION:
+        raise ThemePackageError(
+            f"schemaVersion must be the supported value "
+            f"{FACEPLATE_SCHEMA_VERSION}"
+        )
+    layouts = value.get("layouts")
+    if (
+        not isinstance(layouts, dict)
+        or not layouts
+        or set(layouts) - {"landscape", "portrait"}
+    ):
+        raise ThemePackageError(
+            "faceplate layouts must contain landscape or portrait"
+        )
+
+    normalized: dict[str, Any] = {}
+    for orientation, layout_value in layouts.items():
+        path = f"layouts.{orientation}"
+        if not isinstance(layout_value, dict):
+            raise ThemePackageError(f"{path} must be an object")
+        unknown_layout = set(layout_value) - {"root", "regions", "hidden"}
+        if unknown_layout:
+            raise ThemePackageError(
+                f"Unknown field at {path}: {sorted(unknown_layout)[0]}"
+            )
+        legacy_fields: dict[str, Any] = {
+            "regions": layout_value.get("regions", [])
+        }
+        if "hidden" in layout_value:
+            legacy_fields["hidden"] = layout_value["hidden"]
+        validated = validate_layout(legacy_fields)
+        validated["frame"] = _validate_faceplate_node(
+            layout_value.get("root"),
+            f"{path}.root",
+            depth=0,
+            frame_ids=set(),
+            surface_ids=set(),
+            seen=set(),
+            node_count=[0],
+        )
+        if validated["frame"]["type"] != "frame":
+            raise ThemePackageError(f"{path}.root must declare a frame")
+        normalized[orientation] = validated
+
+    return {
+        "language": FACEPLATE_LANGUAGE,
+        "schemaVersion": FACEPLATE_SCHEMA_VERSION,
+        "layouts": normalized,
+    }
+
+
+def load_faceplate(payload: str) -> dict[str, Any]:
+    try:
+        value = yaml.safe_load(payload)
+    except yaml.YAMLError as error:
+        raise ThemePackageError("faceplate YAML is invalid") from error
+    return validate_faceplate(value)
+
+
+def generate_faceplate_css(faceplate: dict[str, Any]) -> str:
+    validated = validate_faceplate(faceplate)
+    frames: set[str] = set()
+    surfaces: set[str] = set()
+
+    def collect(node: dict[str, Any]) -> None:
+        if node["type"] == "surface":
+            surfaces.add(node["id"])
+            return
+        frames.add(node["id"])
+        for child in node["children"]:
+            collect(child)
+
+    for layout in validated["layouts"].values():
+        collect(layout["frame"])
+
+    lines = [
+        "/* Generated from a coldth.faceplate 0.1 document.",
+        " * Faceplate YAML owns layout. This file owns visual treatment.",
+        " */",
+        "",
+        "[data-faceplate] {",
+        "  /* Global receiver materials and typography. */",
+        "}",
+    ]
+    for frame in sorted(frames):
+        lines.extend(
+            [
+                "",
+                f'[data-frame="{frame}"] {{',
+                "  /* Shared chassis, border, background, and ornament. */",
+                "}",
+            ]
+        )
+    for surface in sorted(surfaces):
+        lines.extend(
+            [
+                "",
+                f'[data-surface="{surface}"] {{',
+                "  /* Visual treatment for this trusted Coldth surface. */",
+                "}",
+            ]
+        )
+        for part in sorted(SURFACE_PARTS[surface]):
+            lines.extend(
+                [
+                    "",
+                    f'[data-surface="{surface}"] [data-part="{part}"] {{',
+                    "}",
+                ]
+            )
+    return "\n".join(lines) + "\n"
+
+
 def _merge_layout(
     parent: dict[str, Any] | None, child: dict[str, Any]
 ) -> dict[str, Any]:
@@ -407,6 +717,8 @@ def _merge_layout(
             result["flow"] = list(child["flow"])
         if "hidden" in child:
             result["hidden"] = list(child["hidden"])
+        if "frame" in child:
+            result["frame"] = child["frame"]
         return result
     regions = [dict(region) for region in parent["regions"]]
     positions = {region["id"]: index for index, region in enumerate(regions)}
@@ -427,6 +739,9 @@ def _merge_layout(
     hidden = child.get("hidden", parent.get("hidden"))
     if hidden is not None:
         result["hidden"] = list(hidden)
+    frame = child.get("frame", parent.get("frame"))
+    if frame is not None:
+        result["frame"] = frame
     return result
 
 
@@ -573,39 +888,59 @@ class ThemeRegistry:
             manifest_path = self.builtin_root / theme_id / "theme.json"
             try:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-                layout_paths = manifest.get("layouts", {})
-                if not isinstance(layout_paths, dict) or set(layout_paths) - {
-                    "landscape",
-                    "portrait",
-                }:
-                    raise ThemePackageError("Invalid built-in theme layouts")
-                layouts = {
-                    name: validate_layout(
-                        json.loads(
-                            (
-                                manifest_path.parent
-                                / _package_path(
-                                    path,
-                                    f"layouts.{name}",
-                                    suffixes={".json"},
-                                )
-                            ).read_text(encoding="utf-8")
-                        )
+                faceplate_path = manifest.get("faceplate")
+                if faceplate_path is not None:
+                    faceplate = load_faceplate(
+                        (
+                            manifest_path.parent
+                            / _package_path(
+                                faceplate_path,
+                                "faceplate",
+                                suffixes={".yaml", ".yml"},
+                            )
+                        ).read_text(encoding="utf-8")
                     )
-                    for name, path in layout_paths.items()
-                }
+                    layouts = faceplate["layouts"]
+                else:
+                    layout_paths = manifest.get("layouts", {})
+                    if not isinstance(layout_paths, dict) or set(layout_paths) - {
+                        "landscape",
+                        "portrait",
+                    }:
+                        raise ThemePackageError("Invalid built-in theme layouts")
+                    layouts = {
+                        name: validate_layout(
+                            json.loads(
+                                (
+                                    manifest_path.parent
+                                    / _package_path(
+                                        path,
+                                        f"layouts.{name}",
+                                        suffixes={".json"},
+                                    )
+                                ).read_text(encoding="utf-8")
+                            )
+                        )
+                        for name, path in layout_paths.items()
+                    }
             except (OSError, json.JSONDecodeError, ThemePackageError) as error:
                 raise FileNotFoundError(theme_id) from error
             tokens = _validate_tokens(manifest.get("tokens"))
         else:
             try:
                 root, manifest = self._installed_package(theme_id)
-                layouts = {
-                    name: validate_layout(
-                        json.loads((root / path).read_text(encoding="utf-8"))
+                if manifest.get("faceplate"):
+                    faceplate = load_faceplate(
+                        (root / manifest["faceplate"]).read_text(encoding="utf-8")
                     )
-                    for name, path in manifest["layouts"].items()
-                }
+                    layouts = faceplate["layouts"]
+                else:
+                    layouts = {
+                        name: validate_layout(
+                            json.loads((root / path).read_text(encoding="utf-8"))
+                        )
+                        for name, path in manifest["layouts"].items()
+                    }
             except (OSError, json.JSONDecodeError, ThemePackageError) as error:
                 raise FileNotFoundError(theme_id) from error
             tokens = manifest["tokens"]
@@ -613,6 +948,12 @@ class ThemeRegistry:
         return {
             **summary,
             "apiVersion": THEME_API_VERSION,
+            "faceplateLanguage": (
+                FACEPLATE_LANGUAGE if manifest.get("faceplate") else None
+            ),
+            "faceplateSchemaVersion": (
+                FACEPLATE_SCHEMA_VERSION if manifest.get("faceplate") else None
+            ),
             "extends": manifest.get("extends"),
             "tokens": tokens,
             "layouts": layouts,
@@ -642,6 +983,14 @@ class ThemeRegistry:
             layouts[orientation] = _merge_layout(layouts.get(orientation), layout)
         return {
             **descriptor,
+            "faceplateLanguage": (
+                descriptor.get("faceplateLanguage")
+                or parent.get("faceplateLanguage")
+            ),
+            "faceplateSchemaVersion": (
+                descriptor.get("faceplateSchemaVersion")
+                or parent.get("faceplateSchemaVersion")
+            ),
             "tokens": {**parent["tokens"], **descriptor["tokens"]},
             "layouts": layouts,
             "stylesheets": [
@@ -712,6 +1061,8 @@ class ThemeRegistry:
                     raise ThemePackageError("manifest.json is invalid") from error
 
                 referenced = {manifest["styles"], *manifest["layouts"].values()}
+                if manifest.get("faceplate"):
+                    referenced.add(manifest["faceplate"])
                 if manifest.get("preview"):
                     referenced.add(manifest["preview"])
                 missing = referenced - names
@@ -729,15 +1080,25 @@ class ThemeRegistry:
                 for name in names:
                     if PurePosixPath(name).suffix.lower() == ".css":
                         _validate_css(package.read(name), names)
-                for layout_path in manifest["layouts"].values():
+                if manifest.get("faceplate"):
                     try:
-                        validate_layout(
-                            json.loads(package.read(layout_path).decode("utf-8"))
+                        load_faceplate(
+                            package.read(manifest["faceplate"]).decode("utf-8")
                         )
-                    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                    except UnicodeDecodeError as error:
                         raise ThemePackageError(
-                            f"Invalid layout JSON: {layout_path}"
+                            f"Invalid faceplate YAML: {manifest['faceplate']}"
                         ) from error
+                else:
+                    for layout_path in manifest["layouts"].values():
+                        try:
+                            validate_layout(
+                                json.loads(package.read(layout_path).decode("utf-8"))
+                            )
+                        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                            raise ThemePackageError(
+                                f"Invalid layout JSON: {layout_path}"
+                            ) from error
                 for name in names:
                     if PurePosixPath(name).suffix.lower() == ".svg":
                         _validate_svg(package.read(name))

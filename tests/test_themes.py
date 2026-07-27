@@ -4,6 +4,7 @@ import stat
 import zipfile
 
 import pytest
+import yaml
 
 from coldth.themes import (
     ThemeAlreadyInstalledError,
@@ -11,9 +12,33 @@ from coldth.themes import (
     ThemePackageError,
     ThemeRegistry,
     ThemeVersionError,
+    generate_faceplate_css,
+    load_faceplate,
     validate_layout,
     validate_manifest,
 )
+
+FACEPLATE = """
+language: coldth.faceplate
+schemaVersion: "0.1"
+layouts:
+  landscape:
+    root:
+      frame: receiver
+      direction: column
+      gap: 16
+      children:
+        - frame: stereo
+          direction: row
+          padding: [12, 16]
+          children:
+            - surface: meters
+              width: fill
+            - surface: balance
+              width: 320
+        - surface: tone
+        - surface: presets
+"""
 
 
 def theme_archive(
@@ -96,6 +121,85 @@ def test_builtin_descriptor_loads_a_validated_layout(tmp_path):
     )
 
 
+def test_faceplate_language_normalizes_recursive_frames():
+    faceplate = load_faceplate(FACEPLATE)
+    layout = faceplate["layouts"]["landscape"]
+    root = layout["frame"]
+
+    assert faceplate["language"] == "coldth.faceplate"
+    assert faceplate["schemaVersion"] == "0.1"
+    assert root["id"] == "receiver"
+    assert root["direction"] == "column"
+    assert root["gap"] == 16
+    assert root["children"][0] == {
+        "type": "frame",
+        "id": "stereo",
+        "direction": "row",
+        "gap": 0,
+        "padding": [12, 16],
+        "align": "stretch",
+        "justify": "start",
+        "wrap": False,
+        "children": [
+            {"type": "surface", "id": "meters", "width": "fill"},
+            {"type": "surface", "id": "balance", "width": 320},
+        ],
+    }
+
+
+def test_faceplate_language_rejects_wrong_versions_and_duplicate_surfaces():
+    with pytest.raises(ThemePackageError, match="schemaVersion"):
+        load_faceplate(
+            FACEPLATE.replace(
+                'schemaVersion: "0.1"',
+                'schemaVersion: "0.2"',
+            )
+        )
+
+    duplicate = FACEPLATE.replace(
+        "        - surface: tone",
+        "        - surface: meters",
+    )
+    with pytest.raises(
+        ThemePackageError,
+        match=r"Duplicate surface at layouts\.landscape\.root\.children\[1\]",
+    ):
+        load_faceplate(duplicate)
+
+
+def test_builtin_descriptor_loads_faceplate_yaml(tmp_path):
+    theme = tmp_path / "receiver"
+    theme.mkdir()
+    (theme / "theme.json").write_text(
+        json.dumps(
+            {
+                "id": "receiver",
+                "name": "Receiver",
+                "faceplate": "faceplate.yaml",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (theme / "faceplate.yaml").write_text(FACEPLATE, encoding="utf-8")
+
+    descriptor = ThemeRegistry(tmp_path).descriptor("receiver")
+
+    assert descriptor["faceplateLanguage"] == "coldth.faceplate"
+    assert descriptor["faceplateSchemaVersion"] == "0.1"
+    assert descriptor["layouts"]["landscape"]["frame"]["id"] == "receiver"
+
+
+def test_faceplate_starter_css_uses_semantic_hooks():
+    css = generate_faceplate_css(yaml.safe_load(FACEPLATE))
+
+    assert css.count('[data-frame="stereo"]') == 1
+    assert css.count('[data-surface="meters"] {') == 1
+    assert css.count(
+        '[data-surface="meters"] [data-part="peak"]'
+    ) == 1
+    assert "flex-direction" not in css
+
+
 def test_theme_package_installs_atomically_and_serves_assets(tmp_path):
     builtins = tmp_path / "builtins"
     installed = tmp_path / "installed"
@@ -125,6 +229,32 @@ def test_theme_package_installs_atomically_and_serves_assets(tmp_path):
     assert not list(installed.glob(".theme-*"))
     with pytest.raises(ThemeAlreadyInstalledError):
         registry.install(theme_archive())
+
+
+def test_theme_package_installs_faceplate_language_document(tmp_path):
+    builtins = tmp_path / "builtins"
+    installed = tmp_path / "installed"
+    builtins.mkdir()
+    registry = ThemeRegistry(builtins, installed)
+    manifest = {
+        "id": "com.example.receiver",
+        "name": "Receiver",
+        "version": "1.0.0",
+        "apiVersion": 1,
+        "styles": "theme.css",
+        "faceplate": "faceplate.yaml",
+    }
+
+    registry.install(
+        theme_archive(
+            manifest=manifest,
+            extra={"faceplate.yaml": FACEPLATE.encode()},
+        )
+    )
+    descriptor = registry.descriptor("com.example.receiver")
+
+    assert descriptor["faceplateLanguage"] == "coldth.faceplate"
+    assert descriptor["layouts"]["landscape"]["frame"]["id"] == "receiver"
 
 
 def test_descriptor_exposes_validated_tokens_and_layouts(tmp_path):

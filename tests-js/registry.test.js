@@ -19,6 +19,7 @@ import {
   SPECTRUM_OVERLAY_PRESENTATION,
   TONE_BANK_COMPONENT,
   TRACK_INFO_COMPONENT,
+  nowPlayingTextState,
   registerBuiltins,
 } from "../src/coldth/static/ui/builtins.js";
 
@@ -154,5 +155,25 @@ test("mounted presentations must return the control lifecycle", () => {
         root: {},
       }),
     /returned an invalid control/,
+  );
+});
+
+test("now-playing text stays available while audio metadata is in flight", () => {
+  assert.deepEqual(
+    nowPlayingTextState({
+      metadata: {},
+      transport: { state: "playing" },
+    }),
+    {
+      available: true,
+      state: "Now playing",
+      title: "Waiting for track information",
+      byline: "Audio is playing",
+    },
+  );
+  assert.equal(
+    nowPlayingTextState({ metadata: {}, transport: { state: "stopped" } })
+      .available,
+    false,
   );
 });

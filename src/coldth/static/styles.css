@@ -136,7 +136,8 @@ header {
   grid-column: 1 / -1;
 }
 
-.surface-group {
+.surface-group,
+.faceplate-frame {
   grid-column: 1 / -1;
   display: grid;
   gap: clamp(18px, 4vw, 32px);
@@ -157,7 +158,8 @@ header {
   grid-template-columns: 1fr;
 }
 
-.surface-group > .receiver-surface {
+.surface-group > .receiver-surface,
+.faceplate-frame > .receiver-surface {
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -166,8 +168,90 @@ header {
 }
 
 .surface-group > [hidden],
+.faceplate-frame > [hidden],
 .receiver-layout > [hidden] {
   display: none;
+}
+
+[data-auto-layout="true"] {
+  display: flex;
+  gap: var(--frame-gap, 0);
+  padding: var(--frame-padding, 0);
+}
+
+[data-auto-layout="true"][data-direction="row"] {
+  flex-direction: row;
+}
+
+[data-auto-layout="true"][data-direction="column"] {
+  flex-direction: column;
+}
+
+[data-auto-layout="true"][data-wrap="true"] {
+  flex-wrap: wrap;
+}
+
+[data-auto-layout="true"][data-align="start"] {
+  align-items: flex-start;
+}
+
+[data-auto-layout="true"][data-align="center"] {
+  align-items: center;
+}
+
+[data-auto-layout="true"][data-align="end"] {
+  align-items: flex-end;
+}
+
+[data-auto-layout="true"][data-align="stretch"] {
+  align-items: stretch;
+}
+
+[data-auto-layout="true"][data-justify="start"] {
+  justify-content: flex-start;
+}
+
+[data-auto-layout="true"][data-justify="center"] {
+  justify-content: center;
+}
+
+[data-auto-layout="true"][data-justify="end"] {
+  justify-content: flex-end;
+}
+
+[data-auto-layout="true"][data-justify="space-between"] {
+  justify-content: space-between;
+}
+
+[data-width="fill"] {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+[data-width="hug"] {
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: 100%;
+}
+
+[data-height="fill"] {
+  min-height: 0;
+  align-self: stretch;
+}
+
+[data-height="hug"] {
+  height: max-content;
+  max-height: 100%;
+}
+
+[style*="--frame-width"] {
+  width: var(--frame-width);
+  max-width: 100%;
+}
+
+[style*="--frame-height"] {
+  height: var(--frame-height);
+  max-height: 100%;
 }
 
 h1,

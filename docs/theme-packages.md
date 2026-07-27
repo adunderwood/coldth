@@ -9,10 +9,11 @@ persistent data directory. Installed packages appear in `GET /api/v1/themes`
 and can be installed from the settings page. `GET /api/v1/themes/{id}` returns
 the effective descriptor consumed by receiver clients.
 
-Manifest, CSS, asset, semantic-token, layout, component, presentation, and
-presentation-option validation are active. Unsafe paths, symlinks, encrypted
-entries, executable formats, HTML, remote CSS, unsafe SVG, oversized archives,
-unknown API versions, and reserved identifiers are rejected.
+Manifest, CSS, asset, semantic-token, faceplate-language, legacy layout,
+component, presentation, and presentation-option validation are active.
+Unsafe paths, symlinks, encrypted entries, executable formats, HTML, remote
+CSS, unsafe SVG, oversized archives, unknown API or faceplate schema versions,
+and reserved identifiers are rejected.
 
 Single-parent inheritance is active. Coldth resolves parent CSS, tokens, and
 layout regions into one descriptor before activation; it never installs a
@@ -48,6 +49,7 @@ A `.coldth-theme` file is a ZIP archive:
 ```text
 braun.coldth-theme
 ├── manifest.json
+├── faceplate.yaml
 ├── theme.css
 ├── preview.png
 ├── README.md
@@ -55,9 +57,6 @@ braun.coldth-theme
 │   ├── fonts/
 │   ├── textures/
 │   └── indicators/
-└── layouts/
-    ├── landscape.json
-    └── portrait.json
 ```
 
 Themes contain no JavaScript and no arbitrary HTML.
@@ -73,11 +72,8 @@ Themes contain no JavaScript and no arbitrary HTML.
   "author": "Example",
   "extends": "black-1987",
   "styles": "theme.css",
+  "faceplate": "faceplate.yaml",
   "preview": "preview.png",
-  "layouts": {
-    "landscape": "layouts/landscape.json",
-    "portrait": "layouts/portrait.json"
-  },
   "requires": {
     "components": ["stereo-meters", "eq", "balance"],
     "presentations": [
@@ -92,6 +88,21 @@ Themes contain no JavaScript and no arbitrary HTML.
 `id`, `version`, and `apiVersion` are required. A package may have exactly one
 parent. Multiple inheritance, remote dependencies, and executable install
 hooks are not supported.
+
+New themes should reference one `faceplate.yaml` document. Coldth still reads
+the earlier orientation-specific JSON `layouts` form while existing packages
+are migrated, but a manifest cannot declare both forms. The faceplate document
+uses its own language and schema identity:
+
+```yaml
+language: coldth.faceplate
+schemaVersion: "0.1"
+```
+
+The faceplate schema is independent of the theme package version, theme API
+version, and Coldth application version. See
+[the Coldth Faceplate Language](faceplate-language.md) for its bounded
+receiver-specific vocabulary.
 
 ## Components and presentations
 
@@ -276,64 +287,43 @@ Meter presentations consume public dBFS measurements. Themes may tune bounded
 visual ballistics, but cannot change measurement data or execute per-frame
 code.
 
-## Layout
+## Faceplate layout
 
-Layouts arrange components in named regions:
+`faceplate.yaml` describes one root frame for each responsive layout:
 
-```json
-{
-  "regions": [
-    {
-      "id": "meters",
-      "component": "stereo-meters",
-      "presentation": "coldth.presentation/analog-vu@1",
-      "options": {
-        "startAngle": -48,
-        "endAngle": 42
-      }
-    },
-    {
-      "id": "tone",
-      "component": "eq",
-      "presentation": "coldth.presentation/vertical-fader@1"
-    },
-    {
-      "id": "balance",
-      "component": "balance",
-      "presentation": "coldth.presentation/rotary-knob@1",
-      "options": {
-        "startAngle": -135,
-        "endAngle": 135
-      }
-    }
-  ],
-  "groups": [
-    {
-      "id": "stereo",
-      "surfaces": ["meters", "balance"],
-      "direction": "row"
-    },
-    {
-      "id": "now-playing",
-      "surfaces": ["album-art", "track-info"],
-      "direction": "row"
-    }
-  ],
-  "flow": [
-    "stereo",
-    "spectrum",
-    "now-playing",
-    "tone",
-    "presets"
-  ],
-  "hidden": ["spectrum"]
-}
+```yaml
+language: coldth.faceplate
+schemaVersion: "0.1"
+
+layouts:
+  landscape:
+    root:
+      frame: receiver
+      direction: column
+      gap: 16
+      children:
+        - frame: stereo
+          direction: row
+          gap: 32
+          padding: 24
+          children:
+            - surface: meters
+              width: fill
+            - surface: balance
+              width: fill
+
+        - surface: tone
+          width: fill
+
+        - surface: presets
+          width: fill
 ```
 
-The layout engine creates the elements. Theme CSS styles stable component,
-region, state, and part selectors.
+The frame engine creates the elements. Theme CSS styles stable faceplate,
+frame, surface, state, and presentation-part selectors. Layout properties
+belong to the faceplate document, not its CSS.
 
-`flow` physically orders Coldth's stable receiver surfaces:
+Coldth's stable receiver surfaces are:
 
 ```text
 meters      stereo RMS and peak measurements
@@ -345,26 +335,25 @@ tone        EQ or composite tone-bank presentation
 presets     preset controls
 ```
 
-A flow may list only the surfaces it wants to prioritize. Coldth appends any
-omitted surfaces in the safe default order, so a theme cannot accidentally
-remove a control or display. The optional `hidden` array deliberately
-suppresses only observational surfaces: `meters`, `spectrum`, `track-info`,
-and `album-art`. Interactive `balance`, `tone`, and `presets` cannot be hidden.
+Coldth appends omitted surfaces in the safe default order, so a theme cannot
+accidentally remove an interactive control. The optional `hidden` array
+deliberately suppresses only observational surfaces: `meters`, `spectrum`,
+`track-info`, and `album-art`. Interactive `balance`, `tone`, and `presets`
+cannot be hidden.
 
-`groups` creates flat shared chassis for independent surfaces. Every group has
-a unique non-surface `id`, at least two unique member surfaces, and a `row` or
-`column` direction. A surface may belong to only one group in a layout.
-`flow` references the group ID instead of its member surfaces. Coldth appends
-an omitted group in the safe fallback position of its first member, collapses
-it when all members are unavailable, and never changes member component state
-or presentation behavior.
+Frames may nest to eight levels and contain at most 64 total nodes per layout.
+Frame and surface IDs are unique within a layout. Empty frames collapse when
+all optional descendants are unavailable and never change descendant state or
+presentation behavior.
 
-Themes may style any surface through its `data-layout-surface` value. The
-group wrapper exposes `data-layout-group` and `data-direction`. The header,
-engine status, message region, and product signature remain application-owned.
+Themes style the root through `data-faceplate`, frames through `data-frame`,
+surfaces through `data-surface`, and presentation internals through documented
+`data-part` values. The header, engine status, message region, and product
+signature remain application-owned.
 
-When inheriting, child-supplied `groups`, `flow`, or `hidden` values replace
-their parent values independently. An omitted field continues to inherit.
+When inheriting, a child root frame replaces its parent's root for the same
+orientation while presentation regions continue to merge by ID. Omitted
+orientations continue to inherit.
 
 ## Semantic tokens
 

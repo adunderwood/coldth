@@ -136,7 +136,7 @@ empty-group collapse, safe fallback, inheritance, and bundled landscape and
 portrait layouts are implemented. Original Yellow and Black 1987 both use
 `stereo` and `now-playing` chassis.
 
-### 3a. Generalize surface groups into auto-layout frames
+### 3a. Generalize surface groups into auto-layout frames — implemented
 
 Treat the faceplate as a root frame and surface groups as nested frames rather
 than adding more one-off container types. Borrow the small, useful subset of
@@ -158,6 +158,86 @@ and freeform transforms are intentionally outside the first contract.
 This supersedes the flat `groups` shape once the recursive contract is proven.
 During the unstable v1 period, bundled themes can migrate directly without a
 legacy compatibility layer.
+
+Schema `coldth.faceplate` `0.1`, YAML loading, bounded recursive frame
+validation, normalized descriptors, browser rendering, semantic frame,
+surface, and presentation-part hooks, bundled-theme migration, the
+machine-readable schema, and visual-only starter CSS generation are
+implemented.
+
+#### Faceplate authoring contract
+
+The architectural boundary and vocabulary are defined in
+[the Coldth Faceplate Language](faceplate-language.md).
+
+Use a declarative YAML file as the human- and AI-facing authoring format for
+the frame tree. Coldth validates it and normalizes it to JSON-compatible data
+before exposing it to the browser. YAML is an authoring convenience, not a
+second runtime state model.
+
+Treat the document as an instance of the Coldth faceplate language, not as
+“some YAML.” Every faceplate declares that language and its schema version:
+
+```yaml
+language: coldth.faceplate
+schemaVersion: "0.1"
+```
+
+`schemaVersion` versions the meaning and structure of the faceplate document.
+It is independent of the Coldth application release, the theme package
+version, and the HTTP API version. Use a string rather than a YAML number so
+versions remain identifiers instead of acquiring numeric comparison semantics.
+
+The language also remains independent of its serialization. A future JSON,
+TOML, editor-native, or other representation can encode the same normalized
+faceplate model without defining a new layout language. Coldth may advertise
+which faceplate schema versions it accepts, but application releases do not
+implicitly redefine an existing schema version.
+
+Keep layout and appearance deliberately separate:
+
+```text
+faceplate.yaml  hierarchy, direction, gap, padding, alignment, and sizing
+theme.css       colors, type, borders, textures, shadows, lamps, and needles
+Coldth          state, behavior, accessibility, and interaction
+```
+
+Coldth should be able to generate a documented starter CSS file from a valid
+faceplate. That stylesheet exposes stable semantic selectors for the root
+faceplate, named frames, surfaces, and supported component parts. Editing the
+generated CSS changes visual styling without requiring edits to the faceplate
+layout.
+
+Raw CSS remains an advanced escape hatch and cannot technically be prevented
+from using browser layout properties. The supported contract reserves layout
+ownership for the faceplate model. A future editor should guide ordinary users
+through visual tokens and documented appearance properties while preserving
+direct CSS access for theme designers.
+
+Design this format for three equivalent authoring paths:
+
+- hand-written theme packages;
+- a future visual faceplate editor that reads and writes the normalized model;
+- AI-generated themes produced from a concise authoring guide and a
+  machine-readable schema.
+
+Ship the contract with a versioned schema, a minimal valid theme, and explicit
+instructions that generated themes may use only registered frames, surfaces,
+presentations, and documented CSS parts. Theme packages still may not include
+arbitrary HTML or executable JavaScript.
+
+Completion means:
+
+- a theme can declare its responsive frame tree in YAML;
+- each document identifies `coldth.faceplate` and an explicit schema version;
+- schema versions are negotiated independently of Coldth and package versions;
+- invalid frame trees fail with useful path-specific errors;
+- Coldth returns one normalized layout representation to clients;
+- a starter stylesheet can be generated from the semantic frame tree;
+- the generated CSS contains documented hooks without owning layout;
+- bundled themes exercise hand-authored YAML and generated CSS; and
+- the same model can be round-tripped by a future editor without losing
+  meaningful author intent.
 
 ### 4. Standalone ten-band spectrum panel
 

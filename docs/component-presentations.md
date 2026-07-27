@@ -76,30 +76,44 @@ ten-band EQ state with read-only ten-band spectrum measurements. Its
 level ladder per frequency. The options schema permits `8..40` segments and a
 validated orientation; themes cannot replace its input or measurement code.
 
-The stable styling surface includes `.tone-strip`, `.tone-strip-control`,
-`.tone-fader`, `.level-ladder`, `.level-ladder i`, `.active`, and the
-`data-zone` values `normal`, `warm`, and `hot`.
+Presentations expose stable semantic `data-part` attributes for supported
+visual styling. Classes remain implementation conveniences; faceplate CSS
+should prefer the documented parts:
 
-The presentations generate the same stable classes and accessibility labels
-used by the original receiver. Existing CSS themes and responsive layouts
-therefore continue to work without knowing about registry internals.
+```text
+meters      channel, channel-label, track, fill, peak, value
+balance     left-label, right-label, legend, control, value
+spectrum    status
+track-info  state, title, byline
+album-art   image
+tone        band, value, track, level, control-group, control,
+            ladder, segment, label
+presets     heading, save, controls, list, load, export, delete,
+            import, save-dialog
+```
+
+Parts are scoped through their surface:
+
+```css
+[data-surface="meters"] [data-part="peak"] {
+  /* Visual treatment only. */
+}
+```
+
+Presentation code owns DOM structure, accessibility labels, behavior, and
+motion. A theme must not rely on the relative nesting or element type of a
+part.
 
 Presentations mount inside application-owned receiver surfaces. Track
 information and album artwork are separate components observing the same
 canonical metadata state, so either can be placed or omitted independently.
 
-Declarative theme layout controls the physical flow of `meters`, `balance`,
-`spectrum`, `track-info`, `album-art`, `tone`, and `presets`. It does not move
-presentation-generated DOM across component boundaries or take ownership of
-the header and service status. Layouts may explicitly hide optional
-observational surfaces; omitting a surface from `flow` uses its safe fallback
-position instead.
-
-Flat surface groups let independent sibling surfaces share one chassis.
-Groups own layout direction and provide a stable `data-layout-group` styling
-target; member surfaces retain their original components, presentations, and
-state ownership. A surface belongs to at most one group per layout. Empty
-groups collapse when every optional member is unavailable.
+The Coldth Faceplate Language controls the physical frame tree containing
+`meters`, `balance`, `spectrum`, `track-info`, `album-art`, `tone`, and
+`presets`. It does not move presentation-generated DOM across component
+boundaries or take ownership of the header and service status. Frames expose
+stable `data-frame` hooks and collapse when every optional descendant is
+unavailable.
 
 ## Testing
 

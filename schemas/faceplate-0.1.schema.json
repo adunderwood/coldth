@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coldth.dev/schemas/faceplate-0.1.schema.json",
+  "title": "Coldth Faceplate Language 0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "schemaVersion", "layouts"],
+  "properties": {
+    "language": {
+      "const": "coldth.faceplate"
+    },
+    "schemaVersion": {
+      "const": "0.1"
+    },
+    "layouts": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "landscape": {
+          "$ref": "#/$defs/layout"
+        },
+        "portrait": {
+          "$ref": "#/$defs/layout"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 80
+    },
+    "size": {
+      "oneOf": [
+        {
+          "enum": ["fill", "hug"]
+        },
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4096
+        }
+      ]
+    },
+    "spacing": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "padding": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/spacing"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/spacing"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/spacing"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      ]
+    },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface"],
+      "properties": {
+        "surface": {
+          "enum": [
+            "meters",
+            "balance",
+            "spectrum",
+            "track-info",
+            "album-art",
+            "tone",
+            "presets"
+          ]
+        },
+        "width": {
+          "$ref": "#/$defs/size"
+        },
+        "height": {
+          "$ref": "#/$defs/size"
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frame", "children"],
+      "properties": {
+        "frame": {
+          "$ref": "#/$defs/identifier"
+        },
+        "direction": {
+          "enum": ["row", "column"],
+          "default": "column"
+        },
+        "gap": {
+          "$ref": "#/$defs/spacing",
+          "default": 0
+        },
+        "padding": {
+          "$ref": "#/$defs/padding",
+          "default": 0
+        },
+        "align": {
+          "enum": ["start", "center", "end", "stretch"],
+          "default": "stretch"
+        },
+        "justify": {
+          "enum": ["start", "center", "end", "space-between"],
+          "default": "start"
+        },
+        "wrap": {
+          "type": "boolean",
+          "default": false
+        },
+        "width": {
+          "$ref": "#/$defs/size"
+        },
+        "height": {
+          "$ref": "#/$defs/size"
+        },
+        "children": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/frame"
+              },
+              {
+                "$ref": "#/$defs/surface"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "component", "presentation"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "component": {
+          "type": "string"
+        },
+        "presentation": {
+          "type": "string"
+        },
+        "options": {
+          "type": "object"
+        }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root"],
+      "properties": {
+        "root": {
+          "$ref": "#/$defs/frame"
+        },
+        "regions": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/region"
+          },
+          "default": []
+        },
+        "hidden": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["meters", "spectrum", "track-info", "album-art"]
+          }
+        }
+      }
+    }
+  }
+}

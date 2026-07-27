@@ -87,6 +87,9 @@ The current trusted browser control contract is documented in
 The hierarchy from faceplate through component presentation, and the behavior
 loop from interaction through audio effect and feedback, are documented in the
 [receiver model](docs/receiver-model.md).
+The planned declarative receiver language, its ownership boundaries, and its
+deliberately narrow scope are defined in
+[the Coldth Faceplate Language](docs/faceplate-language.md).
 Declarative `.coldth-theme` ZIP packages can be installed from `/settings`;
 the package safety and compatibility contract is documented in
 [theme packages](docs/theme-packages.md).
@@ -115,10 +118,10 @@ Use `--no-pull` after making or pulling changes yourself.
 ## Faceplates and meters
 
 Coldth includes two faceplates: **Original Yellow** and **Black 1987**. The
-selection is saved in the browser. Faceplates are declarative CSS packages
-under `src/coldth/static/themes`; each directory contains a `theme.json`
-manifest and a `theme.css` stylesheet. They cannot add scripts or change the
-audio configuration.
+selection is saved in the browser. Faceplates are declarative packages under
+`src/coldth/static/themes`; each directory contains a `theme.json` manifest,
+a `faceplate.yaml` Coldth Faceplate Language document, and a `theme.css`
+stylesheet. They cannot add scripts or change the audio configuration.
 
 The stereo meters use live playback RMS and peak levels from CamillaDSP. The
 matching ten-band illumination is optional: Coldth reads a second ALSA

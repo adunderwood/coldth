@@ -12,13 +12,18 @@ own DSP state, and canonical state must not know about visual nesting.
 API v1 remains unstable during development. This document records the current
 working vocabulary, not a frozen compatibility promise.
 
+The planned declarative representation of this physical hierarchy is defined
+by [the Coldth Faceplate Language](faceplate-language.md). That language is
+specific to Coldth receiver faceplates and is deliberately not a
+general-purpose UI language.
+
 ## Physical structure
 
 ```text
 Application shell
 └── Receiver faceplate
-    └── Layout
-        ├── Surface group
+    └── Root frame
+        ├── Frame
         │   ├── Surface
         │   │   └── Component presentation
         │   └── Surface
@@ -46,7 +51,7 @@ coordinates:
 
 - one or more orientation-specific layouts;
 - global materials and typography;
-- surface-group chassis;
+- frame chassis;
 - component faces; and
 - presentation choices.
 
@@ -54,21 +59,21 @@ Original Yellow, Black 1987, and 1969 are receiver faceplates.
 
 ### Layout
 
-A layout places receiver surfaces for an orientation or viewport. It controls
-flow, deliberate visibility of optional displays, and surface grouping.
+A layout supplies one recursive root frame for an orientation or viewport. It
+controls auto-layout composition and deliberate visibility of optional
+displays.
 
-Omitting a surface means “use the safe fallback position,” not “hide it.”
-Layouts explicitly hide optional observational surfaces when that is the
-design intent.
+Coldth appends omitted surfaces in a safe fallback position. Layouts explicitly
+hide optional observational surfaces when that is the design intent.
 
-### Surface group
+### Frame
 
-A surface group gives independent sibling surfaces one shared visual chassis.
-It may own:
+A frame composes child frames and independent sibling surfaces. It owns:
 
 - background and border;
 - padding and gap;
-- row or column arrangement; and
+- row or column auto-layout;
+- alignment, distribution, wrapping, and sizing; and
 - a stable theme region.
 
 For example:
@@ -83,12 +88,9 @@ now-playing
 └── track-info
 ```
 
-Grouping does not transfer state ownership. Album artwork does not own track
-information, and meters do not own balance. Groups are a layout primitive,
-not a new semantic component.
-
-Coldth will begin with flat groups. Recursive group nesting should be added
-only if completed faceplates demonstrate a real need.
+Framing does not transfer state ownership. Album artwork does not own track
+information, and meters do not own balance. Frames are layout primitives, not
+new semantic components.
 
 ### Surface
 
