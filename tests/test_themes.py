@@ -252,7 +252,7 @@ def test_layout_rejects_incompatible_presentations_and_options():
                 ]
             }
         )
-    with pytest.raises(ThemePackageError, match="Unknown layout surface"):
+    with pytest.raises(ThemePackageError, match="Unknown layout flow item"):
         validate_layout(
             {
                 "regions": [
@@ -315,6 +315,67 @@ def test_layout_rejects_incompatible_presentations_and_options():
                         "options": {"segments": 80},
                     }
                 ]
+            }
+        )
+
+
+def test_layout_validates_flat_surface_groups():
+    layout = validate_layout(
+        {
+            "regions": [],
+            "groups": [
+                {
+                    "id": "stereo",
+                    "surfaces": ["meters", "balance"],
+                    "direction": "row",
+                },
+                {
+                    "id": "now-playing",
+                    "surfaces": ["album-art", "track-info"],
+                    "direction": "column",
+                },
+            ],
+            "flow": ["stereo", "spectrum", "now-playing", "tone", "presets"],
+        }
+    )
+
+    assert layout["groups"][0] == {
+        "id": "stereo",
+        "surfaces": ["meters", "balance"],
+        "direction": "row",
+    }
+    assert layout["flow"][0] == "stereo"
+
+    with pytest.raises(ThemePackageError, match="multiple groups"):
+        validate_layout(
+            {
+                "regions": [],
+                "groups": [
+                    {
+                        "id": "stereo",
+                        "surfaces": ["meters", "balance"],
+                        "direction": "row",
+                    },
+                    {
+                        "id": "other-meters",
+                        "surfaces": ["meters", "spectrum"],
+                        "direction": "column",
+                    },
+                ],
+            }
+        )
+    with pytest.raises(ThemePackageError, match="cannot appear directly"):
+        validate_layout(
+            {
+                "regions": [],
+                "groups": [
+                    {
+                        "id": "stereo",
+                        "surfaces": ["meters", "balance"],
+                        "direction": "row",
+                    }
+                ],
+                "flow": ["stereo", "meters", "tone"],
             }
         )
 

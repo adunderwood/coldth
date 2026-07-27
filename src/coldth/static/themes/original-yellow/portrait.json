@@ -1,0 +1,16 @@
+{
+  "regions": [],
+  "groups": [
+    {
+      "id": "stereo",
+      "surfaces": ["meters", "balance"],
+      "direction": "column"
+    },
+    {
+      "id": "now-playing",
+      "surfaces": ["album-art", "track-info"],
+      "direction": "column"
+    }
+  ],
+  "flow": ["stereo", "spectrum", "now-playing", "tone", "presets"]
+}

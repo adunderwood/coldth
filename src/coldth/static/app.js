@@ -37,6 +37,7 @@ const layoutSurfaces = new Map(
     surface,
   ]),
 );
+const layoutGroupElements = new Map();
 
 let bands = {};
 let balance = 0;
@@ -426,14 +427,43 @@ function activeLayout(descriptor) {
 
 function applySurfaceFlow(descriptor) {
   const layout = activeLayout(descriptor);
+  for (const surface of DEFAULT_SURFACE_FLOW) {
+    const element = layoutSurfaces.get(surface);
+    if (element) receiverLayout.append(element);
+  }
+  for (const group of layoutGroupElements.values()) group.remove();
+  layoutGroupElements.clear();
+
+  const groups = layout?.groups || [];
+  const groupForSurface = new Map();
+  for (const group of groups) {
+    const element = document.createElement("div");
+    element.className = "surface-group";
+    element.dataset.layoutGroup = group.id;
+    element.dataset.direction = group.direction;
+    for (const surface of group.surfaces) {
+      const member = layoutSurfaces.get(surface);
+      if (member) {
+        element.append(member);
+        groupForSurface.set(surface, group.id);
+      }
+    }
+    layoutGroupElements.set(group.id, element);
+  }
+
   const requested = layout?.flow || [];
+  const fallback = [];
+  for (const surface of DEFAULT_SURFACE_FLOW) {
+    const item = groupForSurface.get(surface) || surface;
+    if (!fallback.includes(item)) fallback.push(item);
+  }
   const flow = [
     ...requested,
-    ...DEFAULT_SURFACE_FLOW.filter((surface) => !requested.includes(surface)),
+    ...fallback.filter((item) => !requested.includes(item)),
   ];
   layoutHiddenSurfaces = new Set(layout?.hidden || []);
-  for (const surface of flow) {
-    const element = layoutSurfaces.get(surface);
+  for (const item of flow) {
+    const element = layoutGroupElements.get(item) || layoutSurfaces.get(item);
     if (element) receiverLayout.append(element);
   }
   receiverLayout.dataset.flow = flow.join(" ");
@@ -445,6 +475,9 @@ function syncSurfaceVisibility() {
     element.hidden =
       layoutHiddenSurfaces.has(surface) ||
       surfaceAvailability.get(surface) === false;
+  }
+  for (const group of layoutGroupElements.values()) {
+    group.hidden = [...group.children].every((surface) => surface.hidden);
   }
 }
 

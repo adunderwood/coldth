@@ -261,14 +261,14 @@ def validate_layout(value: Any) -> dict[str, Any]:
     if (
         not isinstance(value, dict)
         or "regions" not in value
-        or set(value) - {"regions", "flow", "hidden"}
+        or set(value) - {"regions", "groups", "flow", "hidden"}
     ):
         raise ThemePackageError(
-            "layout must contain regions and optional flow and hidden"
+            "layout must contain regions and optional groups, flow, and hidden"
         )
     regions = value["regions"]
-    if not isinstance(regions, list) or not regions:
-        raise ThemePackageError("layout regions must be a non-empty array")
+    if not isinstance(regions, list):
+        raise ThemePackageError("layout regions must be an array")
     if len(regions) > 32:
         raise ThemePackageError("layout contains too many regions")
     result: list[dict[str, Any]] = []
@@ -304,6 +304,60 @@ def validate_layout(value: Any) -> dict[str, Any]:
             }
         )
     layout: dict[str, Any] = {"regions": result}
+    groups = value.get("groups", [])
+    if not isinstance(groups, list) or len(groups) > 16:
+        raise ThemePackageError("layout groups must be an array of at most 16 groups")
+    group_ids: set[str] = set()
+    grouped_surfaces: set[str] = set()
+    validated_groups: list[dict[str, Any]] = []
+    for group in groups:
+        if not isinstance(group, dict) or set(group) != {
+            "id",
+            "surfaces",
+            "direction",
+        }:
+            raise ThemePackageError(
+                "layout group must contain id, surfaces, and direction"
+            )
+        group_id = _require_text(group.get("id"), "group.id", maximum=80)
+        if (
+            not REGION_ID.fullmatch(group_id)
+            or group_id in group_ids
+            or group_id in SURFACE_IDS
+        ):
+            raise ThemePackageError(f"Invalid or duplicate group id: {group_id}")
+        surfaces = group.get("surfaces")
+        if (
+            not isinstance(surfaces, list)
+            or len(surfaces) < 2
+            or not all(isinstance(surface, str) for surface in surfaces)
+            or len(surfaces) != len(set(surfaces))
+        ):
+            raise ThemePackageError(
+                f"Group {group_id} surfaces must be a unique array of at least two"
+            )
+        unknown_surfaces = set(surfaces) - SURFACE_IDS
+        if unknown_surfaces:
+            raise ThemePackageError(
+                f"Unknown group surface: {sorted(unknown_surfaces)[0]}"
+            )
+        duplicate_surface = set(surfaces) & grouped_surfaces
+        if duplicate_surface:
+            raise ThemePackageError(
+                f"Surface belongs to multiple groups: {sorted(duplicate_surface)[0]}"
+            )
+        direction = group.get("direction")
+        if direction not in {"row", "column"}:
+            raise ThemePackageError(
+                f"Group {group_id} direction must be row or column"
+            )
+        group_ids.add(group_id)
+        grouped_surfaces.update(surfaces)
+        validated_groups.append(
+            {"id": group_id, "surfaces": list(surfaces), "direction": direction}
+        )
+    if validated_groups:
+        layout["groups"] = validated_groups
     if "flow" in value:
         flow = value["flow"]
         if (
@@ -313,10 +367,16 @@ def validate_layout(value: Any) -> dict[str, Any]:
             or len(flow) != len(set(flow))
         ):
             raise ThemePackageError("layout flow must be a non-empty unique array")
-        unknown_surfaces = set(flow) - SURFACE_IDS
-        if unknown_surfaces:
+        unknown_items = set(flow) - SURFACE_IDS - group_ids
+        if unknown_items:
             raise ThemePackageError(
-                f"Unknown layout surface: {sorted(unknown_surfaces)[0]}"
+                f"Unknown layout flow item: {sorted(unknown_items)[0]}"
+            )
+        grouped_in_flow = set(flow) & grouped_surfaces
+        if grouped_in_flow:
+            raise ThemePackageError(
+                f"Grouped surface cannot appear directly in flow: "
+                f"{sorted(grouped_in_flow)[0]}"
             )
         layout["flow"] = flow
     if "hidden" in value:
@@ -341,6 +401,8 @@ def _merge_layout(
 ) -> dict[str, Any]:
     if parent is None:
         result = {"regions": [dict(region) for region in child["regions"]]}
+        if "groups" in child:
+            result["groups"] = [dict(group) for group in child["groups"]]
         if "flow" in child:
             result["flow"] = list(child["flow"])
         if "hidden" in child:
@@ -356,6 +418,9 @@ def _merge_layout(
             positions[replacement["id"]] = len(regions)
             regions.append(replacement)
     result = {"regions": regions}
+    groups = child.get("groups", parent.get("groups"))
+    if groups is not None:
+        result["groups"] = [dict(group) for group in groups]
     flow = child.get("flow", parent.get("flow"))
     if flow is not None:
         result["flow"] = list(flow)

@@ -1,5 +1,8 @@
 # Component and presentation registry
 
+The surrounding structural vocabulary and the input-to-effect behavior loop
+are defined in the [receiver model](receiver-model.md).
+
 ## Status
 
 The bundled receiver now renders every interactive or live-data surface
@@ -91,6 +94,12 @@ presentation-generated DOM across component boundaries or take ownership of
 the header and service status. Layouts may explicitly hide optional
 observational surfaces; omitting a surface from `flow` uses its safe fallback
 position instead.
+
+Flat surface groups let independent sibling surfaces share one chassis.
+Groups own layout direction and provide a stable `data-layout-group` styling
+target; member surfaces retain their original components, presentations, and
+state ownership. A surface belongs to at most one group per layout. Empty
+groups collapse when every optional member is unavailable.
 
 ## Testing
 

@@ -1,0 +1,26 @@
+{
+  "regions": [
+    {
+      "id": "tone",
+      "component": "eq",
+      "presentation": "coldth.presentation/vertical-fader@1",
+      "options": {
+        "orientation": "horizontal"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "stereo",
+      "surfaces": ["meters", "balance"],
+      "direction": "column"
+    },
+    {
+      "id": "now-playing",
+      "surfaces": ["album-art", "track-info"],
+      "direction": "column"
+    }
+  ],
+  "hidden": ["spectrum"],
+  "flow": ["stereo", "now-playing", "tone", "presets"]
+}

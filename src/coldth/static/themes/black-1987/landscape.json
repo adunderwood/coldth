@@ -10,12 +10,22 @@
       }
     }
   ],
+  "groups": [
+    {
+      "id": "stereo",
+      "surfaces": ["meters", "balance"],
+      "direction": "row"
+    },
+    {
+      "id": "now-playing",
+      "surfaces": ["album-art", "track-info"],
+      "direction": "row"
+    }
+  ],
+  "hidden": ["spectrum"],
   "flow": [
-    "meters",
-    "balance",
-    "spectrum",
-    "track-info",
-    "album-art",
+    "stereo",
+    "now-playing",
     "tone",
     "presets"
   ]

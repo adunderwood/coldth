@@ -84,6 +84,9 @@ visualization platform is described in
 [visualizer plugins](docs/visualizer-plugins.md).
 The current trusted browser control contract is documented in
 [component and presentation registry](docs/component-presentations.md).
+The hierarchy from faceplate through component presentation, and the behavior
+loop from interaction through audio effect and feedback, are documented in the
+[receiver model](docs/receiver-model.md).
 Declarative `.coldth-theme` ZIP packages can be installed from `/settings`;
 the package safety and compatibility contract is documented in
 [theme packages](docs/theme-packages.md).

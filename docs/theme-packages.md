@@ -307,12 +307,22 @@ Layouts arrange components in named regions:
       }
     }
   ],
+  "groups": [
+    {
+      "id": "stereo",
+      "surfaces": ["meters", "balance"],
+      "direction": "row"
+    },
+    {
+      "id": "now-playing",
+      "surfaces": ["album-art", "track-info"],
+      "direction": "row"
+    }
+  ],
   "flow": [
-    "meters",
-    "balance",
+    "stereo",
     "spectrum",
-    "track-info",
-    "album-art",
+    "now-playing",
     "tone",
     "presets"
   ],
@@ -341,12 +351,20 @@ remove a control or display. The optional `hidden` array deliberately
 suppresses only observational surfaces: `meters`, `spectrum`, `track-info`,
 and `album-art`. Interactive `balance`, `tone`, and `presets` cannot be hidden.
 
-Themes may style any surface through its `data-layout-surface` value. The
-header, engine status, message region, and product signature remain
-application-owned.
+`groups` creates flat shared chassis for independent surfaces. Every group has
+a unique non-surface `id`, at least two unique member surfaces, and a `row` or
+`column` direction. A surface may belong to only one group in a layout.
+`flow` references the group ID instead of its member surfaces. Coldth appends
+an omitted group in the safe fallback position of its first member, collapses
+it when all members are unavailable, and never changes member component state
+or presentation behavior.
 
-When inheriting, child-supplied `flow` or `hidden` values replace their parent
-values independently. An omitted field continues to inherit.
+Themes may style any surface through its `data-layout-surface` value. The
+group wrapper exposes `data-layout-group` and `data-direction`. The header,
+engine status, message region, and product signature remain application-owned.
+
+When inheriting, child-supplied `groups`, `flow`, or `hidden` values replace
+their parent values independently. An omitted field continues to inherit.
 
 ## Semantic tokens
 

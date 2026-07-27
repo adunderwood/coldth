@@ -45,6 +45,10 @@ interaction, and motion. A component face owns the scoped visual treatment and
 assets for that presentation. A receiver faceplate coordinates component
 faces, layout, and global materials into a complete design.
 
+Implementation friction is recorded in the
+[theme pain diary](theme-pain-diary.md). Repeated evidence across faceplates,
+not speculative elegance, should drive the eventual refactor.
+
 ## Implementation sequence
 
 ### 1. Granular receiver surfaces — implemented
@@ -80,7 +84,7 @@ Completion means:
 The shell, validation contract, fallback order, explicit optional visibility,
 and bundled-theme migration are implemented. The existing spectrum overlay
 still reaches into EQ presentation DOM; the standalone spectrum work in step
-3 removes that remaining coupling.
+4 removes that remaining coupling.
 
 ### 2. Split track information and album artwork — implemented
 
@@ -96,7 +100,43 @@ artwork must collapse cleanly without leaving an empty decorative panel.
 Both components now mount and advertise availability independently while
 observing the same canonical metadata and transport state.
 
-### 3. Standalone ten-band spectrum panel
+### 3. Declarative surface groups — implemented
+
+Test a layout-level grouping model for components that remain semantically
+independent but sometimes share one visual chassis:
+
+```text
+stereo       meters + balance
+now-playing  album-art + track-info
+```
+
+A group should own shared panel chrome, padding, and member arrangement. Its
+members remain ordinary Coldth components with independent state,
+presentations, availability, and optional visibility.
+
+Start with named, flat groups rather than arbitrary recursive nesting.
+Portrait and landscape layouts may arrange the same members differently or
+omit the group and place them independently. The exact manifest shape remains
+unstable until Original Yellow and Black 1987 both exercise it.
+
+Completion means:
+
+- grouped surfaces share one background, border, padding model, and theme
+  region;
+- a group can arrange members in a row or column without component-specific
+  code;
+- unavailable optional members collapse without leaving a broken chassis;
+- the same surface belongs to at most one group in a layout;
+- ungrouped surfaces retain safe fallback placement; and
+- grouping does not change component state ownership or presentation
+  behavior.
+
+Flat groups, group-aware flow, row/column direction, single-group membership,
+empty-group collapse, safe fallback, inheritance, and bundled landscape and
+portrait layouts are implemented. Original Yellow and Black 1987 both use
+`stereo` and `now-playing` chassis.
+
+### 4. Standalone ten-band spectrum panel
 
 Add a built-in spectrum presentation that renders the existing honest
 ten-band analyzer data as a discrete 1980s-style panel. It must not depend on
@@ -112,7 +152,7 @@ plain ten-band faders
 The existing integrated fader-ladder presentation remains available to themes
 that want per-fader illumination.
 
-### 4. LED marquee track display
+### 5. LED marquee track display
 
 Add a built-in `track-info` presentation for Black 1987 that:
 
@@ -125,7 +165,7 @@ Add a built-in `track-info` presentation for Black 1987 that:
 Theme CSS owns the font, LED color, glass, mask, and surrounding faceplate.
 Coldth owns animation and accessibility behavior.
 
-### 5. Preset button presentation and management
+### 6. Preset button presentation and management
 
 Add a second presentation for the existing presets component. It renders one
 immediate-load button per preset, a visible active state, and a Save button.
@@ -142,7 +182,7 @@ Move preset administration to Settings:
 Reordering, renaming, and hiding presets are deferred until the button
 presentation demonstrates a real need for them.
 
-### 6. Theme chrome and packaged backgrounds
+### 7. Theme chrome and packaged backgrounds
 
 Exercise capabilities that should already belong to theme CSS:
 
@@ -157,7 +197,7 @@ Document the stable selectors needed to remove the default card treatment.
 Add manifest or layout options only when CSS cannot express a requirement
 safely.
 
-### 7. Rotary controls and analog meters
+### 8. Rotary controls and analog meters
 
 Add Coldth-owned built-in presentations for:
 
@@ -169,7 +209,7 @@ Coldth owns pointer, touch, keyboard, focus, accessibility, value mapping, and
 meter ballistics. Themes own bounded geometry and visual assets such as knob
 faces, indicators, scales, needles, and panel materials.
 
-### 8. Build the 1969 receiver faceplate
+### 9. Build the 1969 receiver faceplate
 
 Use the new rotary and analog presentations to create the third bundled
 faceplate. It should be structurally different from both existing themes, not
@@ -184,7 +224,7 @@ This faceplate is the acceptance test for:
 - analog measurement motion; and
 - layout fallback across orientations.
 
-### 9. Component-face composition experiment
+### 10. Component-face composition experiment
 
 After all three complete faceplates exist, extract their proven component
 treatments into reusable component faces. Do not invent the distributable
@@ -220,7 +260,7 @@ The exact manifest syntax and distribution contract remain deliberately
 unsettled until this experiment is complete. This is a small direct-reference
 graph, not a general-purpose dependency solver.
 
-### 10. Contract review
+### 11. Contract review
 
 After all three bundled faceplates and the component-face experiment work:
 

@@ -3,6 +3,7 @@
   "name": "Black 1987",
   "description": "Smoked glass, amber legends, and green fluorescent meters.",
   "layouts": {
-    "landscape": "landscape.json"
+    "landscape": "landscape.json",
+    "portrait": "portrait.json"
   }
 }
