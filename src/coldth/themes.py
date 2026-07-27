@@ -27,6 +27,7 @@ COMPONENT_PRESENTATIONS = {
     "balance": {"coldth.presentation/horizontal-slider@1"},
     "stereo-meters": {"coldth.presentation/led-bar@1"},
     "spectrum": {"coldth.presentation/ten-band-overlay@1"},
+    "tone-bank": {"coldth.presentation/fader-ladder@1"},
     "metadata": {"coldth.presentation/now-playing-display@1"},
     "presets": {"coldth.presentation/preset-selector@1"},
 }
@@ -37,6 +38,10 @@ PRESENTATION_OPTIONS: dict[str, dict[str, tuple[type, Any]]] = {
     },
     "coldth.presentation/led-bar@1": {
         "releasePerFrame": (int | float, (0.1, 12.0))
+    },
+    "coldth.presentation/fader-ladder@1": {
+        "orientation": (str, {"responsive", "vertical", "horizontal"}),
+        "segments": (int, (8, 40)),
     },
 }
 
@@ -398,10 +403,30 @@ class ThemeRegistry:
             manifest_path = self.builtin_root / theme_id / "theme.json"
             try:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError) as error:
+                layout_paths = manifest.get("layouts", {})
+                if not isinstance(layout_paths, dict) or set(layout_paths) - {
+                    "landscape",
+                    "portrait",
+                }:
+                    raise ThemePackageError("Invalid built-in theme layouts")
+                layouts = {
+                    name: validate_layout(
+                        json.loads(
+                            (
+                                manifest_path.parent
+                                / _package_path(
+                                    path,
+                                    f"layouts.{name}",
+                                    suffixes={".json"},
+                                )
+                            ).read_text(encoding="utf-8")
+                        )
+                    )
+                    for name, path in layout_paths.items()
+                }
+            except (OSError, json.JSONDecodeError, ThemePackageError) as error:
                 raise FileNotFoundError(theme_id) from error
             tokens = _validate_tokens(manifest.get("tokens"))
-            layouts: dict[str, dict[str, Any]] = {}
         else:
             if self.installed_root is None:
                 raise FileNotFoundError(theme_id)

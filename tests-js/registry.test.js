@@ -7,6 +7,7 @@ import {
   BALANCE_SLIDER_PRESENTATION,
   EQ_COMPONENT,
   EQ_FADER_PRESENTATION,
+  FADER_LADDER_PRESENTATION,
   LED_METERS_PRESENTATION,
   METADATA_COMPONENT,
   METERS_COMPONENT,
@@ -15,6 +16,7 @@ import {
   PRESET_SELECTOR_PRESENTATION,
   SPECTRUM_COMPONENT,
   SPECTRUM_OVERLAY_PRESENTATION,
+  TONE_BANK_COMPONENT,
   registerBuiltins,
 } from "../src/coldth/static/ui/builtins.js";
 
@@ -32,6 +34,10 @@ test("built-in presentations resolve against semantic components", () => {
     SPECTRUM_COMPONENT,
     SPECTRUM_OVERLAY_PRESENTATION,
   );
+  const toneBank = registry.resolve(
+    TONE_BANK_COMPONENT,
+    FADER_LADDER_PRESENTATION,
+  );
   const metadata = registry.resolve(
     METADATA_COMPONENT,
     NOW_PLAYING_PRESENTATION,
@@ -46,6 +52,11 @@ test("built-in presentations resolve against semantic components", () => {
   assert.equal(balance.component.valueType, "continuous-bipolar");
   assert.deepEqual(meters.options, { releasePerFrame: 0.7 });
   assert.equal(spectrum.component.valueType, "band-measurements");
+  assert.equal(toneBank.component.valueType, "tone-bank-state");
+  assert.deepEqual(toneBank.options, {
+    orientation: "responsive",
+    segments: 24,
+  });
   assert.equal(metadata.component.valueType, "metadata-state");
   assert.equal(presets.component.valueType, "preset-collection");
 });
@@ -72,6 +83,13 @@ test("presentation options are schema validated", () => {
     () =>
       registry.resolve(METERS_COMPONENT, LED_METERS_PRESENTATION, {
         releasePerFrame: 0,
+      }),
+    /at least/,
+  );
+  assert.throws(
+    () =>
+      registry.resolve(TONE_BANK_COMPONENT, FADER_LADDER_PRESENTATION, {
+        segments: 4,
       }),
     /at least/,
   );

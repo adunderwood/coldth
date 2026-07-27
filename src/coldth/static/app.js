@@ -4,6 +4,7 @@ import {
   BALANCE_SLIDER_PRESENTATION,
   EQ_COMPONENT,
   EQ_FADER_PRESENTATION,
+  FADER_LADDER_PRESENTATION,
   LED_METERS_PRESENTATION,
   METADATA_COMPONENT,
   METERS_COMPONENT,
@@ -12,6 +13,7 @@ import {
   PRESET_SELECTOR_PRESENTATION,
   SPECTRUM_COMPONENT,
   SPECTRUM_OVERLAY_PRESENTATION,
+  TONE_BANK_COMPONENT,
   registerBuiltins,
 } from "./ui/builtins.js";
 
@@ -43,6 +45,7 @@ let metersControl;
 let spectrumControl;
 let metadataControl;
 let presetsControl;
+let toneBankControl;
 const controls = new ControlRegistry();
 registerBuiltins(controls);
 let currentState;
@@ -72,6 +75,12 @@ const DEFAULT_REGIONS = {
     component: SPECTRUM_COMPONENT,
     presentation: SPECTRUM_OVERLAY_PRESENTATION,
     options: {},
+  },
+  [TONE_BANK_COMPONENT]: {
+    id: "tone-bank",
+    component: TONE_BANK_COMPONENT,
+    presentation: FADER_LADDER_PRESENTATION,
+    options: { orientation: "responsive", segments: 24 },
   },
   [METADATA_COMPONENT]: {
     id: "now-playing",
@@ -215,6 +224,7 @@ function connectEvents() {
     } else if (payload.type === "meter.frame") {
       metersControl?.setValue(payload.data);
       spectrumControl?.setValue(payload.data.spectrum);
+      toneBankControl?.setValue({ spectrum: payload.data.spectrum });
     } else if (payload.type === "metadata.changed") {
       currentMetadata = payload.data;
       metadataControl?.setValue({
@@ -241,6 +251,7 @@ function connectEvents() {
   eventSocket.addEventListener("close", () => {
     metersControl?.setValue(null);
     spectrumControl?.setValue(null);
+    toneBankControl?.setValue({ spectrum: null });
     reconnectTimer = setTimeout(connectEvents, 2000);
   });
   eventSocket.addEventListener("error", () => eventSocket.close());
@@ -250,6 +261,7 @@ function applyTone(tone = {}) {
   if (tone.bands) {
     bands = tone.bands;
     eqControl?.setValue(bands);
+    toneBankControl?.setValue({ bands });
   }
   if (tone.balance !== undefined) {
     balance = tone.balance;
@@ -384,6 +396,7 @@ function disposeControls() {
     metersControl,
     balanceControl,
     eqControl,
+    toneBankControl,
   ]) {
     control?.dispose?.();
   }
@@ -392,6 +405,11 @@ function disposeControls() {
 function mountControls(state, descriptor) {
   disposeControls();
   const regions = activeRegions(descriptor);
+  const usesToneBank = Boolean(
+    descriptor?.layouts?.[
+      matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape"
+    ]?.regions?.some((region) => region.component === TONE_BANK_COMPONENT),
+  );
   for (const [component, root] of [
     [EQ_COMPONENT, equalizer],
     [BALANCE_COMPONENT, balanceRoot],
@@ -403,21 +421,45 @@ function mountControls(state, descriptor) {
     root.dataset.themeRegion = regions[component].id;
   }
 
-  eqControl = controls.mount({
-    ...regions[EQ_COMPONENT],
-    root: equalizer,
-    context: {
-      value: bands,
-      frequencies: state.limits.eq.frequencies,
-      range: state.limits.eq,
-      labelFrequency,
-      labelValue: labelGain,
-      onInput(nextBands) {
-        bands = nextBands;
-        scheduleUpdate();
+  eqControl = null;
+  spectrumControl = null;
+  toneBankControl = null;
+  spectrumRoot.hidden = usesToneBank;
+  if (usesToneBank) {
+    equalizer.dataset.themeRegion = regions[TONE_BANK_COMPONENT].id;
+    toneBankControl = controls.mount({
+      ...regions[TONE_BANK_COMPONENT],
+      root: equalizer,
+      context: {
+        value: bands,
+        frequencies: state.limits.eq.frequencies,
+        range: state.limits.eq,
+        labelFrequency,
+        labelValue: labelGain,
+        levelPercent,
+        onInput(nextBands) {
+          bands = nextBands;
+          scheduleUpdate();
+        },
       },
-    },
-  });
+    });
+  } else {
+    eqControl = controls.mount({
+      ...regions[EQ_COMPONENT],
+      root: equalizer,
+      context: {
+        value: bands,
+        frequencies: state.limits.eq.frequencies,
+        range: state.limits.eq,
+        labelFrequency,
+        labelValue: labelGain,
+        onInput(nextBands) {
+          bands = nextBands;
+          scheduleUpdate();
+        },
+      },
+    });
+  }
   balanceControl = controls.mount({
     ...regions[BALANCE_COMPONENT],
     root: balanceRoot,
@@ -436,16 +478,19 @@ function mountControls(state, descriptor) {
     root: metersRoot,
     context: { levelPercent, formatLevel },
   });
-  spectrumControl = controls.mount({
-    ...regions[SPECTRUM_COMPONENT],
-    root: spectrumRoot,
-    context: {
-      bandCount: state.limits.eq.frequencies.length,
-      eqRoot: equalizer,
-      levelElements: eqControl.parts.levels,
-      levelPercent,
-    },
-  });
+  if (!usesToneBank) {
+    spectrumRoot.hidden = false;
+    spectrumControl = controls.mount({
+      ...regions[SPECTRUM_COMPONENT],
+      root: spectrumRoot,
+      context: {
+        bandCount: state.limits.eq.frequencies.length,
+        eqRoot: equalizer,
+        levelElements: eqControl.parts.levels,
+        levelPercent,
+      },
+    });
+  }
   metadataControl = controls.mount({
     ...regions[METADATA_COMPONENT],
     root: metadataRoot,
@@ -466,7 +511,8 @@ function mountControls(state, descriptor) {
       onImport: importPreset,
     },
   });
-  eqControl.setValue(bands);
+  eqControl?.setValue(bands);
+  toneBankControl?.setValue({ bands });
   balanceControl.setValue(balance);
   presetsControl.setValue({ presets: presetItems, selected: selectedPreset });
 }

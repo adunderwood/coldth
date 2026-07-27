@@ -97,6 +97,7 @@ eq
 balance
 stereo-meters
 spectrum
+tone-bank
 presets
 metadata
 transport
@@ -112,9 +113,30 @@ rotary-knob
 analog-vu
 led-bar
 fluorescent-spectrum
+fader-ladder
 ```
 
 Themes select and configure presentations. They do not implement them.
+
+`tone-bank` is a composite of the EQ control and spectrum measurement. It lets
+a trusted presentation pair each writable band with its corresponding
+read-only meter while preserving the same canonical API state. For example:
+
+```json
+{
+  "id": "tone-bank",
+  "component": "tone-bank",
+  "presentation": "coldth.presentation/fader-ladder@1",
+  "options": {
+    "orientation": "vertical",
+    "segments": 24
+  }
+}
+```
+
+Themes may style and place the generated faders and ladder segments, including
+their normal, warm, hot, lit, and unlit states. Themes cannot create controls,
+change their bindings, or supply event-handling code.
 
 Presentations have stable identifiers and major versions, such as
 `coldth.presentation/rotary-knob@1`. Built-in presentations ship with Coldth.

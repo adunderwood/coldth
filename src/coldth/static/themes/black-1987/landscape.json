@@ -1,0 +1,13 @@
+{
+  "regions": [
+    {
+      "id": "tone-bank",
+      "component": "tone-bank",
+      "presentation": "coldth.presentation/fader-ladder@1",
+      "options": {
+        "orientation": "vertical",
+        "segments": 24
+      }
+    }
+  ]
+}

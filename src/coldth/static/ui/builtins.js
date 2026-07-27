@@ -2,6 +2,7 @@ export const EQ_COMPONENT = "eq";
 export const BALANCE_COMPONENT = "balance";
 export const METERS_COMPONENT = "stereo-meters";
 export const SPECTRUM_COMPONENT = "spectrum";
+export const TONE_BANK_COMPONENT = "tone-bank";
 export const METADATA_COMPONENT = "metadata";
 export const PRESETS_COMPONENT = "presets";
 export const EQ_FADER_PRESENTATION =
@@ -11,6 +12,8 @@ export const BALANCE_SLIDER_PRESENTATION =
 export const LED_METERS_PRESENTATION = "coldth.presentation/led-bar@1";
 export const SPECTRUM_OVERLAY_PRESENTATION =
   "coldth.presentation/ten-band-overlay@1";
+export const FADER_LADDER_PRESENTATION =
+  "coldth.presentation/fader-ladder@1";
 export const NOW_PLAYING_PRESENTATION =
   "coldth.presentation/now-playing-display@1";
 export const PRESET_SELECTOR_PRESENTATION =
@@ -218,6 +221,104 @@ function mountSpectrumOverlay({ root, context }) {
         level.style.removeProperty("--level");
       });
       status.remove();
+    },
+  };
+}
+
+function mountFaderLadder({ root, options, context }) {
+  const listeners = [];
+  const strips = new Map();
+  let bands = { ...context.value };
+  let spectrum = null;
+
+  root.dataset.component = TONE_BANK_COMPONENT;
+  root.dataset.presentation = FADER_LADDER_PRESENTATION;
+  root.dataset.orientation = options.orientation;
+  root.replaceChildren();
+
+  for (const frequency of context.frequencies) {
+    const key = String(frequency);
+    const strip = document.createElement("div");
+    strip.className = "tone-strip";
+    const output = document.createElement("output");
+    output.value = context.labelValue(bands[key]);
+    const control = document.createElement("div");
+    control.className = "tone-strip-control";
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = context.range.min;
+    slider.max = context.range.max;
+    slider.step = context.range.step;
+    slider.value = bands[key];
+    slider.setAttribute("aria-label", `${frequency} hertz`);
+    const fader = document.createElement("div");
+    fader.className = "tone-fader";
+    fader.append(slider);
+    const ladder = document.createElement("div");
+    ladder.className = "level-ladder";
+    ladder.setAttribute("aria-hidden", "true");
+    const segments = Array.from({ length: options.segments }, (_, index) => {
+      const segment = document.createElement("i");
+      segment.style.setProperty(
+        "--segment-position",
+        `${index / Math.max(1, options.segments - 1)}`,
+      );
+      const position = index / options.segments;
+      segment.dataset.zone =
+        position >= 0.8 ? "hot" : position >= 0.55 ? "warm" : "normal";
+      ladder.append(segment);
+      return segment;
+    });
+    const label = document.createElement("label");
+    label.textContent = context.labelFrequency(frequency);
+    const onInput = () => {
+      bands = { ...bands, [key]: Number(slider.value) };
+      output.value = context.labelValue(bands[key]);
+      context.onInput({ ...bands });
+    };
+    slider.addEventListener("input", onInput);
+    listeners.push(() => slider.removeEventListener("input", onInput));
+    control.append(fader, ladder);
+    strip.append(output, control, label);
+    root.append(strip);
+    strips.set(key, { slider, output, ladder, segments });
+  }
+  root.setAttribute("aria-busy", "false");
+
+  const renderSpectrum = () => {
+    const live =
+      Array.isArray(spectrum) && spectrum.length === context.frequencies.length;
+    root.classList.toggle("analyzer-live", live);
+    context.frequencies.forEach((frequency, index) => {
+      const { ladder, segments } = strips.get(String(frequency));
+      const level = live ? context.levelPercent(spectrum[index]) / 100 : 0;
+      const lit = Math.round(level * segments.length);
+      ladder.dataset.activeSegments = String(lit);
+      segments.forEach((segment, segmentIndex) => {
+        segment.classList.toggle("active", segmentIndex < lit);
+      });
+    });
+  };
+  renderSpectrum();
+
+  return {
+    setValue(nextValue = {}) {
+      if (nextValue.bands) {
+        bands = { ...nextValue.bands };
+        for (const [key, strip] of strips) {
+          strip.slider.value = bands[key];
+          strip.output.value = context.labelValue(bands[key]);
+        }
+      }
+      if ("spectrum" in nextValue) {
+        spectrum = nextValue.spectrum;
+        renderSpectrum();
+      }
+    },
+    dispose() {
+      listeners.forEach((remove) => remove());
+      root.replaceChildren();
+      root.classList.remove("analyzer-live");
     },
   };
 }
@@ -430,6 +531,11 @@ export function registerBuiltins(registry) {
     capability: "spectrum",
   });
   registry.registerComponent({
+    id: TONE_BANK_COMPONENT,
+    valueType: "tone-bank-state",
+    capability: "eq+spectrum",
+  });
+  registry.registerComponent({
     id: METADATA_COMPONENT,
     valueType: "metadata-state",
     capability: "metadata",
@@ -488,6 +594,27 @@ export function registerBuiltins(registry) {
     components: [SPECTRUM_COMPONENT],
     optionsSchema: { properties: {} },
     mount: mountSpectrumOverlay,
+  });
+  registry.registerPresentation({
+    id: FADER_LADDER_PRESENTATION,
+    valueTypes: ["tone-bank-state"],
+    components: [TONE_BANK_COMPONENT],
+    optionsSchema: {
+      properties: {
+        orientation: {
+          type: "string",
+          enum: ["responsive", "vertical", "horizontal"],
+          default: "responsive",
+        },
+        segments: {
+          type: "number",
+          minimum: 8,
+          maximum: 40,
+          default: 24,
+        },
+      },
+    },
+    mount: mountFaderLadder,
   });
   registry.registerPresentation({
     id: NOW_PLAYING_PRESENTATION,

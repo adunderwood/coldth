@@ -58,6 +58,42 @@ def test_registry_ignores_invalid_builtin_manifests(tmp_path):
     ]
 
 
+def test_builtin_descriptor_loads_a_validated_layout(tmp_path):
+    theme = tmp_path / "black"
+    theme.mkdir()
+    (theme / "theme.json").write_text(
+        json.dumps(
+            {
+                "id": "black",
+                "name": "Black",
+                "layouts": {"landscape": "landscape.json"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (theme / "landscape.json").write_text(
+        json.dumps(
+            {
+                "regions": [
+                    {
+                        "id": "tone-bank",
+                        "component": "tone-bank",
+                        "presentation": "coldth.presentation/fader-ladder@1",
+                        "options": {"orientation": "vertical", "segments": 24},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    descriptor = ThemeRegistry(tmp_path).descriptor("black")
+
+    assert descriptor["layouts"]["landscape"]["regions"][0]["component"] == (
+        "tone-bank"
+    )
+
+
 def test_theme_package_installs_atomically_and_serves_assets(tmp_path):
     builtins = tmp_path / "builtins"
     installed = tmp_path / "installed"
@@ -223,6 +259,19 @@ def test_layout_rejects_incompatible_presentations_and_options():
                         "component": "eq",
                         "presentation": "coldth.presentation/vertical-fader@1",
                         "options": {"rotationSpeed": 12},
+                    }
+                ]
+            }
+        )
+    with pytest.raises(ThemePackageError, match="out of range"):
+        validate_layout(
+            {
+                "regions": [
+                    {
+                        "id": "tone-bank",
+                        "component": "tone-bank",
+                        "presentation": "coldth.presentation/fader-ladder@1",
+                        "options": {"segments": 80},
                     }
                 ]
             }

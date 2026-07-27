@@ -61,9 +61,20 @@ eq       → coldth.presentation/vertical-fader@1
 balance  → coldth.presentation/horizontal-slider@1
 stereo-meters → coldth.presentation/led-bar@1
 spectrum → coldth.presentation/ten-band-overlay@1
+tone-bank → coldth.presentation/fader-ladder@1
 metadata → coldth.presentation/now-playing-display@1
 presets  → coldth.presentation/preset-selector@1
 ```
+
+`tone-bank` is the first composite semantic component. It combines writable
+ten-band EQ state with read-only ten-band spectrum measurements. Its
+`fader-ladder@1` presentation renders one accessible fader and one discrete
+level ladder per frequency. The options schema permits `8..40` segments and a
+validated orientation; themes cannot replace its input or measurement code.
+
+The stable styling surface includes `.tone-strip`, `.tone-strip-control`,
+`.tone-fader`, `.level-ladder`, `.level-ladder i`, `.active`, and the
+`data-zone` values `normal`, `warm`, and `hot`.
 
 The presentations generate the same stable classes and accessibility labels
 used by the original receiver. Existing CSS themes and responsive layouts

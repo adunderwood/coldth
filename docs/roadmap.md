@@ -65,6 +65,11 @@ application, orientation-aware layout selection, presentation options, and
 component-level fallback are implemented. Inheritance, physical region
 reordering, version replacement, rollback, and uninstall remain.
 
+The first composite presentation is also implemented: Black 1987 uses the
+landscape `fader-ladder@1` tone bank to pair every EQ band with a discrete,
+theme-styleable spectrum ladder. Portrait retains the established horizontal
+phone controls.
+
 ### 6. Third-party presentation plugins — intentionally deferred
 
 Presentations are trusted executable code. Do not open third-party
