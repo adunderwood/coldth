@@ -73,6 +73,30 @@
           installer leaves that off by default.
         </p>
       </section>
+
+      <section class="settings-panel" aria-labelledby="themes-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Industrial design</p>
+            <h2 id="themes-title">Faceplates</h2>
+          </div>
+          <label class="import-button">
+            Install theme
+            <input
+              id="theme-package"
+              type="file"
+              accept=".coldth-theme,application/zip"
+            >
+          </label>
+        </div>
+
+        <div id="installed-themes" class="installed-themes"></div>
+        <p class="settings-note">
+          A <code>.coldth-theme</code> package may contain CSS, declarative
+          layouts, fonts, and images. Coldth rejects executable code, HTML,
+          remote assets, and unsafe archives before installation.
+        </p>
+      </section>
       <p id="settings-message" class="message" role="status" aria-live="polite"></p>
     </main>
   </body>

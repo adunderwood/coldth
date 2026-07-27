@@ -1,5 +1,22 @@
 # Coldth theme packages
 
+## Implementation status
+
+The first package-loader slice is implemented. Coldth accepts raw
+`.coldth-theme` ZIP archives at `POST /api/v1/themes/install`, validates the
+complete archive in a staging directory, and atomically installs it under the
+persistent data directory. Installed packages appear in `GET /api/v1/themes`
+and can be installed from the settings page.
+
+Manifest, CSS, asset, semantic-token, layout, component, presentation, and
+presentation-option validation are active. Unsafe paths, symlinks, encrypted
+entries, executable formats, HTML, remote CSS, unsafe SVG, oversized archives,
+unknown API versions, and reserved identifiers are rejected.
+
+Inheritance is intentionally rejected in this loader slice. Parent CSS,
+tokens, and region replacement must be implemented as one activation feature;
+Coldth will not silently install a partially inherited theme.
+
 ## Boundary
 
 A theme replaces the industrial designer. It may choose the arrangement,
@@ -317,6 +334,21 @@ A failed theme cannot partially replace the active interface. An incompatible
 or missing presentation falls back to the standard built-in presentation when
 the manifest marks it optional; missing required presentations reject the
 theme.
+
+## Installation API
+
+Send the package itself as the request body:
+
+```sh
+curl --fail-with-body \
+  -H 'Content-Type: application/zip' \
+  --data-binary @braun.coldth-theme \
+  http://coldth.local:8080/api/v1/themes/install
+```
+
+Coldth returns `201` only after complete validation and atomic installation.
+An existing theme identifier returns `409`; replacement and uninstall are
+deliberately deferred until version activation and rollback are designed.
 
 ## Architectural rule
 

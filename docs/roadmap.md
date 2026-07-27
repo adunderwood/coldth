@@ -50,13 +50,19 @@ Prove the complete registry using Coldth's bundled receiver before exposing
 package installation. See
 [component and presentation registry](component-presentations.md).
 
-### 5. Validate and load declarative theme packages — pending
+### 5. Validate and load declarative theme packages — in progress
 
 Implement `.coldth-theme` ZIP validation, safe extraction, manifests,
 single-parent inheritance, semantic tokens, layouts, presentation option
 schemas, compatibility checks, and atomic activation.
 
 Themes remain data and contain no JavaScript or arbitrary HTML.
+
+The secure ZIP loader, persistent theme store, manifest and layout validation,
+built-in presentation compatibility checks, constrained asset serving,
+atomic first install, API endpoint, and settings-page installer are
+implemented. Inheritance, semantic-token application, declarative layout
+activation, version replacement, rollback, and uninstall remain.
 
 ### 6. Third-party presentation plugins — intentionally deferred
 

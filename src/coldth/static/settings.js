@@ -3,14 +3,15 @@ const artworkEnabled = document.querySelector("#artwork-enabled");
 const metadataSource = document.querySelector("#metadata-source");
 const settingsMessage = document.querySelector("#settings-message");
 const themeStylesheet = document.querySelector("#theme-stylesheet");
+const themePackage = document.querySelector("#theme-package");
+const installedThemes = document.querySelector("#installed-themes");
 
 const savedTheme = localStorage.getItem("coldth-theme") || "original-yellow";
-themeStylesheet.href = `/assets/themes/${savedTheme}/theme.css`;
 document.documentElement.dataset.theme = savedTheme;
 
 async function request(url, options = {}) {
   const response = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });
   if (!response.ok) {
@@ -18,6 +19,36 @@ async function request(url, options = {}) {
     throw new Error(payload.detail || `${response.status} ${response.statusText}`);
   }
   return response.json();
+}
+
+function renderThemes(themes) {
+  installedThemes.replaceChildren(
+    ...themes.map((theme) => {
+      const row = document.createElement("div");
+      row.className = "installed-theme";
+      const text = document.createElement("span");
+      const name = document.createElement("strong");
+      name.textContent = theme.name;
+      const detail = document.createElement("small");
+      detail.textContent = theme.builtin
+        ? "Bundled with Coldth"
+        : `${theme.id} · ${theme.version}`;
+      text.append(name, detail);
+      const state = document.createElement("span");
+      state.className = "source-status";
+      state.textContent = theme.id === savedTheme ? "Selected" : "";
+      row.append(text, state);
+      return row;
+    }),
+  );
+  const selected = themes.find((theme) => theme.id === savedTheme);
+  themeStylesheet.href =
+    selected?.stylesheet || "/assets/themes/original-yellow/theme.css";
+}
+
+async function refreshThemes() {
+  const themes = await request("/api/v1/themes");
+  renderThemes(themes);
 }
 
 function applyPrivacy(privacy) {
@@ -55,9 +86,31 @@ metadataEnabled.addEventListener("change", () => {
   savePrivacy();
 });
 artworkEnabled.addEventListener("change", savePrivacy);
+themePackage.addEventListener("change", async () => {
+  const [file] = themePackage.files;
+  if (!file) return;
+  themePackage.disabled = true;
+  settingsMessage.textContent = "Validating theme…";
+  settingsMessage.classList.remove("error");
+  try {
+    const result = await request("/api/v1/themes/install", {
+      method: "POST",
+      headers: { "Content-Type": "application/zip" },
+      body: file,
+    });
+    await refreshThemes();
+    settingsMessage.textContent = `Installed “${result.theme.name}”`;
+  } catch (error) {
+    settingsMessage.textContent = error.message;
+    settingsMessage.classList.add("error");
+  } finally {
+    themePackage.value = "";
+    themePackage.disabled = false;
+  }
+});
 
-request("/api/v1/settings")
-  .then((settings) => {
+Promise.all([request("/api/v1/settings"), refreshThemes()])
+  .then(([settings]) => {
     applyPrivacy(settings.privacy);
     const configured = settings.sources.shairportMetadata.configured;
     metadataSource.textContent = configured

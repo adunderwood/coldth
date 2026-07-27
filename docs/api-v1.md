@@ -10,6 +10,7 @@ GET /api/v1/settings
 PUT /api/v1/settings/privacy
 GET /api/v1/artwork/current
 GET /api/v1/themes
+POST /api/v1/themes/install
 PUT /api/v1/tone/eq
 PUT /api/v1/tone/balance
 GET /api/v1/health/audio
@@ -355,16 +356,20 @@ filesystem paths or arbitrary remote URLs.
 
 `GET /api/v1/themes`
 
+`POST /api/v1/themes/install`
+
 The complete package and motion contract is defined in
 [theme-packages.md](theme-packages.md).
 
-A theme manifest uses semantic receiver tokens:
+A package manifest identifies its contract and entry points:
 
 ```json
 {
-  "id": "black-1987",
+  "id": "com.example.black-1987",
   "name": "Black 1987",
-  "version": 1,
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "styles": "theme.css",
   "tokens": {
     "receiver.faceplate": "#070909",
     "receiver.panel": "#0b0d0d",
@@ -374,16 +379,16 @@ A theme manifest uses semantic receiver tokens:
     "receiver.meter.normal": "#56f29b",
     "receiver.meter.hot": "#f1a94a",
     "receiver.accent": "#56f29b"
-  },
-  "controls": {
-    "eq": "vertical-fader",
-    "balance": "horizontal-slider",
-    "volume": "rotary-knob"
   }
 }
 ```
 
-The exact token list is a versioned contract. CSS variables are an
+Installation accepts the ZIP bytes directly with
+`Content-Type: application/zip`. It returns `201` after complete validation
+and atomic installation, `409` when the identifier is already installed, and
+`422` for an invalid or incompatible package.
+
+The exact token and layout contracts are versioned. CSS variables remain an
 implementation detail generated from tokens.
 
 Themes may choose registered control presentations, but cannot provide

@@ -10,7 +10,7 @@ import re
 from typing import Any
 from urllib.parse import unquote
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -28,7 +28,12 @@ from .model import (
     ValidationError,
 )
 from .store import StateStore
-from .themes import ThemeRegistry
+from .themes import (
+    MAX_ARCHIVE_BYTES,
+    ThemeAlreadyInstalledError,
+    ThemePackageError,
+    ThemeRegistry,
+)
 
 logger = logging.getLogger("coldth.audio")
 
@@ -71,7 +76,7 @@ def create_app(
     )
     signal_levels = SignalLevelClient(engine_url)
     static_dir = Path(__file__).parent / "static"
-    themes = ThemeRegistry(static_dir / "themes")
+    themes = ThemeRegistry(static_dir / "themes", root / "themes")
     analyzer = LocalSpectrumAnalyzer(
         os.getenv("COLDTH_ANALYZER_DEVICE"),
         samplerate=settings.samplerate,
@@ -409,6 +414,33 @@ def create_app(
     @app.get("/api/v1/themes")
     def get_v1_themes() -> list[dict[str, Any]]:
         return themes.list()
+
+    @app.post("/api/v1/themes/install", status_code=201)
+    async def install_v1_theme(request: Request) -> dict[str, Any]:
+        archive = bytearray()
+        async for chunk in request.stream():
+            archive.extend(chunk)
+            if len(archive) > MAX_ARCHIVE_BYTES:
+                raise HTTPException(status_code=413, detail="Theme archive is too large")
+        try:
+            theme = await asyncio.to_thread(themes.install, bytes(archive))
+        except ThemeAlreadyInstalledError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except ThemePackageError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        await events.publish(
+            "theme.installed",
+            {"revision": store.advance_revision(), "theme": theme},
+        )
+        return {"revision": store.revision(), "theme": theme}
+
+    @app.get("/api/v1/themes/{theme_id}/assets/{asset_path:path}")
+    def get_v1_theme_asset(theme_id: str, asset_path: str) -> FileResponse:
+        try:
+            path = themes.asset(theme_id, asset_path)
+        except FileNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Theme asset not found") from error
+        return FileResponse(path)
 
     @app.put("/api/v1/settings/privacy")
     async def set_v1_privacy(payload: dict[str, Any]) -> dict[str, Any]:

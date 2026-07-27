@@ -514,6 +514,31 @@ button:hover,
   padding-top: 20px;
 }
 
+.installed-themes {
+  display: grid;
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.installed-theme {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.installed-theme > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.installed-theme small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
 .settings-help {
   margin-top: 20px;
   color: var(--muted);

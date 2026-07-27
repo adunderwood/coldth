@@ -1,4 +1,6 @@
 import json
+import io
+import zipfile
 
 from fastapi.testclient import TestClient
 
@@ -271,6 +273,61 @@ def test_two_builtin_themes_are_available(tmp_path):
         "black-1987",
         "original-yellow",
     ]
+
+
+def test_v1_theme_package_installation_and_event(tmp_path):
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as package:
+        package.writestr(
+            "manifest.json",
+            json.dumps(
+                {
+                    "id": "com.example.blue",
+                    "name": "Blue",
+                    "version": "1.0.0",
+                    "apiVersion": 1,
+                    "styles": "theme.css",
+                }
+            ),
+        )
+        package.writestr("theme.css", ":root { --accent: #08f; }\n")
+
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        with client.websocket_connect("/api/v1/events") as socket:
+            socket.receive_json()
+            response = client.post(
+                "/api/v1/themes/install",
+                content=archive.getvalue(),
+                headers={"Content-Type": "application/zip"},
+            )
+            event = socket.receive_json()
+
+        assert response.status_code == 201
+        assert response.json()["theme"]["id"] == "com.example.blue"
+        assert event["type"] == "theme.installed"
+        assert event["data"]["theme"]["id"] == "com.example.blue"
+        themes = client.get("/api/v1/themes").json()
+        assert "com.example.blue" in {theme["id"] for theme in themes}
+        asset = client.get(
+            "/api/v1/themes/com.example.blue/assets/theme.css"
+        )
+        assert asset.status_code == 200
+        assert asset.text == ":root { --accent: #08f; }\n"
+        assert client.post(
+            "/api/v1/themes/install", content=archive.getvalue()
+        ).status_code == 409
+
+
+def test_v1_theme_install_rejects_invalid_archive(tmp_path):
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        response = client.post("/api/v1/themes/install", content=b"not a zip")
+
+    assert response.status_code == 422
+    assert not (tmp_path / "themes" / "com.example.bad").exists()
 
 
 def test_unversioned_api_is_not_exposed(tmp_path):
