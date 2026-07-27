@@ -261,6 +261,18 @@ def test_settings_page_is_available(tmp_path):
 
     assert response.status_code == 200
     assert "Use album artwork" in response.text
+    assert 'id="installed-themes"' in response.text
+
+
+def test_receiver_branding_is_a_footer_signature(tmp_path):
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert '<header class="receiver-header">' in response.text
+    assert '<footer class="product-signature"' in response.text
 
 
 def test_two_builtin_themes_are_available(tmp_path):

@@ -8,6 +8,16 @@ const installedThemes = document.querySelector("#installed-themes");
 
 let selectedTheme = localStorage.getItem("coldth-theme") || "original-yellow";
 document.documentElement.dataset.theme = selectedTheme;
+const TOKEN_PROPERTIES = {
+  "receiver.faceplate": "--receiver-faceplate",
+  "receiver.panel": "--receiver-panel",
+  "receiver.glass": "--receiver-glass",
+  "receiver.legend": "--receiver-legend",
+  "receiver.led": "--receiver-led",
+  "receiver.meter.normal": "--receiver-meter-normal",
+  "receiver.meter.hot": "--receiver-meter-hot",
+  "receiver.accent": "--receiver-accent",
+};
 
 async function request(url, options = {}) {
   const response = await fetch(url, {
@@ -41,6 +51,13 @@ function renderThemes(themes) {
         state.className = "source-status";
         state.textContent = "Selected";
         actions.append(state);
+      } else {
+        const select = document.createElement("button");
+        select.type = "button";
+        select.className = "quiet-button";
+        select.textContent = "Use theme";
+        select.addEventListener("click", () => selectTheme(theme));
+        actions.append(select);
       }
       if (!theme.builtin) {
         const uninstall = document.createElement("button");
@@ -54,15 +71,55 @@ function renderThemes(themes) {
       return row;
     }),
   );
-  const selected = themes.find((theme) => theme.id === selectedTheme);
-  themeStylesheet.href =
-    selected?.stylesheet || "/assets/themes/original-yellow/theme.css";
 }
 
 async function refreshThemes() {
   const themes = await request("/api/v1/themes");
   renderThemes(themes);
   return themes;
+}
+
+function applyThemeDescriptor(descriptor) {
+  const stylesheets = descriptor.stylesheets || [descriptor.stylesheet];
+  document
+    .querySelectorAll('link[data-inherited-theme-stylesheet="true"]')
+    .forEach((link) => link.remove());
+  themeStylesheet.href = stylesheets[0];
+  let previousStylesheet = themeStylesheet;
+  for (const href of stylesheets.slice(1)) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.dataset.inheritedThemeStylesheet = "true";
+    previousStylesheet.after(link);
+    previousStylesheet = link;
+  }
+  for (const property of Object.values(TOKEN_PROPERTIES)) {
+    document.documentElement.style.removeProperty(property);
+  }
+  for (const [token, value] of Object.entries(descriptor.tokens || {})) {
+    const property = TOKEN_PROPERTIES[token];
+    if (property) document.documentElement.style.setProperty(property, value);
+  }
+  selectedTheme = descriptor.id;
+  document.documentElement.dataset.theme = selectedTheme;
+  localStorage.setItem("coldth-theme", selectedTheme);
+}
+
+async function selectTheme(theme) {
+  settingsMessage.textContent = `Applying “${theme.name}”…`;
+  settingsMessage.classList.remove("error");
+  try {
+    const descriptor = await request(
+      `/api/v1/themes/${encodeURIComponent(theme.id)}`,
+    );
+    applyThemeDescriptor(descriptor);
+    await refreshThemes();
+    settingsMessage.textContent = `Using “${theme.name}”`;
+  } catch (error) {
+    settingsMessage.textContent = error.message;
+    settingsMessage.classList.add("error");
+  }
 }
 
 async function uninstallTheme(theme) {
@@ -76,9 +133,8 @@ async function uninstallTheme(theme) {
       method: "DELETE",
     });
     if (selectedTheme === theme.id) {
-      selectedTheme = "original-yellow";
-      localStorage.setItem("coldth-theme", selectedTheme);
-      document.documentElement.dataset.theme = selectedTheme;
+      const fallback = await request("/api/v1/themes/original-yellow");
+      applyThemeDescriptor(fallback);
     }
     await refreshThemes();
     settingsMessage.textContent = `Uninstalled “${theme.name}”`;
@@ -149,8 +205,16 @@ themePackage.addEventListener("change", async () => {
   }
 });
 
-Promise.all([request("/api/v1/settings"), refreshThemes()])
-  .then(([settings]) => {
+Promise.all([
+  request("/api/v1/settings"),
+  refreshThemes(),
+  request(`/api/v1/themes/${encodeURIComponent(selectedTheme)}`).catch(() =>
+    request("/api/v1/themes/original-yellow"),
+  ),
+])
+  .then(async ([settings, , descriptor]) => {
+    applyThemeDescriptor(descriptor);
+    await refreshThemes();
     applyPrivacy(settings.privacy);
     const configured = settings.sources.shairportMetadata.configured;
     metadataSource.textContent = configured

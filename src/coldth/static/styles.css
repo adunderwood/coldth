@@ -89,6 +89,35 @@ header {
   margin-bottom: 30px;
 }
 
+.receiver-header {
+  justify-content: flex-end;
+  min-height: 44px;
+  margin-bottom: 18px;
+}
+
+.product-signature {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  margin-top: 22px;
+  color: var(--receiver-legend);
+  text-align: right;
+}
+
+.product-signature span {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.product-signature small {
+  font-size: 0.58rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .receiver-layout {
   display: grid;
   gap: 16px;
@@ -905,6 +934,10 @@ dialog input {
 
   header {
     align-items: flex-start;
+  }
+
+  .receiver-header {
+    align-items: flex-end;
   }
 
   .header-controls {
