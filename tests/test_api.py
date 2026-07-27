@@ -104,6 +104,22 @@ def test_audio_timing_can_be_configured_from_environment(tmp_path, monkeypatch):
     assert config["devices"]["target_level"] == 4096
 
 
+def test_audio_health_is_available_when_engine_is_offline(tmp_path):
+    with TestClient(
+        create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")
+    ) as client:
+        response = client.get("/api/v1/health/audio")
+
+    assert response.status_code == 200
+    health = response.json()
+    assert health["engine"] == "offline"
+    assert health["pcmFlowing"] is False
+    assert health["spectrumFlowing"] is False
+    assert health["captureRms"] == []
+    assert health["playbackRms"] == []
+    assert health["error"]
+
+
 def test_v1_event_stream_sends_snapshot_and_tone_changes(tmp_path):
     with TestClient(
         create_app(data_dir=tmp_path, camilla_url="ws://127.0.0.1:1")

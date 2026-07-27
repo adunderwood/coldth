@@ -131,6 +131,7 @@ Back up `/etc/shairport-sync.conf`, then configure its active `general` and
 general = {
     name = "Coldth";
     output_backend = "alsa";
+    statistics = "yes";
 };
 
 alsa = {
@@ -190,7 +191,7 @@ Use:
 ```ini
 [Service]
 ExecStart=
-ExecStart=/usr/local/bin/camilladsp -s /home/livingroom/camilladsp/statefile.yml -w -g0 -o /home/livingroom/camilladsp/camilladsp.log -p 1234
+ExecStart=/usr/local/bin/camilladsp -s /home/livingroom/camilladsp/statefile.yml -w -g0 -p 1234
 ```
 
 The empty `ExecStart=` removes the command inherited from the packaged unit.
@@ -292,8 +293,26 @@ sleep 2
 sudo systemctl restart coldth
 ```
 
+Install the Shairport ordering drop-in so boot follows the same dependency
+order:
+
+```sh
+sudo mkdir -p /etc/systemd/system/shairport-sync.service.d
+sudo install -m 0644 deploy/shairport-sync-coldth.conf.example \
+  /etc/systemd/system/shairport-sync.service.d/coldth-ordering.conf
+sudo systemctl daemon-reload
+```
+
 Coldth also watches for an inactive CamillaDSP and reapplies the saved
 configuration after an engine restart.
+
+CamillaDSP logs should go to journald rather than a file opened with `-o`.
+The file is replaced on engine startup and can erase evidence of an
+intermittent failure. Inspect persistent logs with:
+
+```sh
+journalctl -u camilladsp --since "-30 minutes" --no-pager
+```
 
 `PrivateTmp=false` is intentional. Shairport and Coldth are different systemd
 services and must see the same `/tmp/shairport-sync-metadata` FIFO. With
@@ -366,6 +385,37 @@ installed console entry point.
 
 ## Troubleshooting
 
+### Capture a diagnostic bundle
+
+Before restarting a failed audio path, run:
+
+```sh
+scripts/diagnose-audio.sh
+```
+
+The command writes a timestamped file under `/tmp` and prints its location. It
+captures service state, Coldth state and audio health, CamillaDSP state and
+levels, all four loopback endpoints, recent service journals, USB/kernel
+events, and Pi throttling. It does not change the audio system.
+
+Coldth also logs CamillaDSP state transitions and warns when AirPlay reports
+playing but capture PCM remains absent for at least 15 seconds:
+
+```sh
+journalctl -u coldth --since "-30 minutes" --no-pager
+```
+
+### Restart the complete audio stack
+
+Use the coordinated command instead of manually guessing service order:
+
+```sh
+scripts/restart-audio.sh
+```
+
+It stops AirPlay input, starts CamillaDSP, waits for its socket, starts Coldth,
+waits for the engine to report `running`, and only then starts Shairport.
+
 ### `status=203/EXEC`
 
 The `ExecStart` path does not exist or is not executable. A virtual environment
@@ -381,7 +431,7 @@ Coldth has not supplied a configuration, or the audio device rejected it:
 
 ```sh
 curl -s http://127.0.0.1:8080/api/v1/state | venv/bin/python -m json.tool
-tail -n 80 /home/livingroom/camilladsp/camilladsp.log
+journalctl -u camilladsp -n 80 --no-pager
 camilladsp -c /home/livingroom/coldth/data/camilladsp.json
 ```
 

@@ -12,6 +12,7 @@ GET /api/v1/artwork/current
 GET /api/v1/themes
 PUT /api/v1/tone/eq
 PUT /api/v1/tone/balance
+GET /api/v1/health/audio
 GET /api/v1/presets
 POST /api/v1/presets
 POST /api/v1/presets/import
@@ -27,8 +28,7 @@ an initial canonical snapshot, `tone.changed` events, and normalized
 `meter.frame`, `metadata.changed`, and `transport.changed` events. Shairport
 metadata, privacy settings, and current in-memory artwork are implemented.
 Preset routes, active-preset state, and preset lifecycle events are
-implemented. The bundled receiver has not yet migrated its preset controls to
-these versioned routes.
+implemented. The bundled receiver uses the versioned preset routes.
 
 ## Purpose
 
@@ -236,6 +236,31 @@ Transport is initially observational. Play, pause, seek, next, and previous are
 not advertised unless the active input supplies reliable commands.
 
 ## Measurements
+
+### Audio health
+
+`GET /api/v1/health/audio` is an operational snapshot rather than a control
+surface. It reports the transport state, engine state, current capture and
+playback RMS vectors, whether capture PCM and spectrum samples are flowing,
+and the latest adapter error:
+
+```json
+{
+  "timestamp": "2026-07-26T21:25:08.618Z",
+  "transport": "playing",
+  "engine": "running",
+  "captureRms": [-23.7, -23.0],
+  "playbackRms": [-31.6, -33.8],
+  "pcmFlowing": true,
+  "spectrumFlowing": true,
+  "error": null
+}
+```
+
+This endpoint is intended for diagnostics and service readiness checks. A
+silent passage can legitimately produce `pcmFlowing: false`; Coldth therefore
+observes sustained silence and logs a warning but does not automatically
+restart audio based on one measurement.
 
 Measurements use a normalized frame shared by every visualization:
 

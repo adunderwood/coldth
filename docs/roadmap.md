@@ -74,6 +74,8 @@ survived real use and versioning.
 - Opt-in, memory-only album artwork
 - Browser privacy settings
 - Raspberry Pi installer and verification tooling
+- Ordered audio-stack restart and diagnostic bundle tooling
+- Persistent journald engine logs and silent-playback observability
 
 ## Future visualizer platform
 

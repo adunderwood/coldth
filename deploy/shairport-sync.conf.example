@@ -2,6 +2,7 @@
 general = {
   name = "Coldth";
   output_backend = "alsa";
+  statistics = "yes";
 };
 
 alsa = {

@@ -1,0 +1,4 @@
+[Unit]
+# Shairport opens the ALSA fan-out only after its two consumers have started.
+Wants=camilladsp.service coldth.service
+After=camilladsp.service coldth.service

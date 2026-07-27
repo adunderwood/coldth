@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import math
 import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -27,6 +29,8 @@ from .model import (
 )
 from .store import StateStore
 from .themes import ThemeRegistry
+
+logger = logging.getLogger("coldth.audio")
 
 
 def _positive_env_int(name: str, default: int) -> int:
@@ -91,11 +95,53 @@ def create_app(
 
     async def reconcile_audio() -> None:
         """Restore the saved config after CamillaDSP is restarted."""
+        previous_state: str | None = None
+        silent_checks = 0
+        silence_warned = False
         while True:
             await asyncio.sleep(5)
             status = await asyncio.to_thread(camilla.status)
-            if status.get("state") == "Inactive":
-                await asyncio.to_thread(camilla.apply, store.bands(), store.balance())
+            state = str(status.get("state") or "unreachable")
+            if state != previous_state:
+                logger.info(
+                    "CamillaDSP state changed from %s to %s",
+                    previous_state or "unknown",
+                    state,
+                )
+                previous_state = state
+            if state == "Inactive":
+                logger.warning("CamillaDSP is inactive; reapplying Coldth configuration")
+                applied = await asyncio.to_thread(
+                    camilla.apply, store.bands(), store.balance()
+                )
+                logger.info("CamillaDSP configuration reapplied: %s", applied)
+
+            transport_playing = metadata.transport().get("state") == "playing"
+            signal_present = False
+            if transport_playing and state == "Running":
+                try:
+                    levels = await asyncio.to_thread(camilla.levels)
+                    capture_rms = levels.get("capture_rms") or []
+                    signal_present = any(
+                        math.isfinite(float(level)) and float(level) > -120
+                        for level in capture_rms
+                    )
+                except Exception as error:
+                    logger.warning("Unable to inspect capture signal: %s", error)
+
+            if transport_playing and state == "Running" and not signal_present:
+                silent_checks += 1
+                if silent_checks >= 3 and not silence_warned:
+                    logger.warning(
+                        "AirPlay reports playing but no capture PCM has been "
+                        "observed for at least 15 seconds"
+                    )
+                    silence_warned = True
+            else:
+                if silence_warned and signal_present:
+                    logger.info("Capture PCM resumed")
+                silent_checks = 0
+                silence_warned = False
 
     def meter_frame(stereo: dict[str, Any] | None) -> dict[str, Any]:
         rms = (
@@ -136,7 +182,16 @@ def create_app(
     async def lifespan(_: FastAPI):
         nonlocal event_loop
         event_loop = asyncio.get_running_loop()
-        camilla.apply(store.bands(), store.balance())
+        initial_apply = camilla.apply(store.bands(), store.balance())
+        logger.info(
+            "Initial CamillaDSP configuration applied=%s rate=%s chunk=%s "
+            "capture=%s playback=%s",
+            initial_apply,
+            settings.samplerate,
+            settings.chunksize,
+            settings.capture_device,
+            settings.playback_device,
+        )
         analyzer.start()
         metadata_adapter.start()
         reconciler = asyncio.create_task(reconcile_audio())
@@ -313,6 +368,32 @@ def create_app(
     @app.get("/api/v1/state")
     def get_v1_state() -> dict[str, Any]:
         return canonical_state()
+
+    @app.get("/api/v1/health/audio")
+    def get_v1_audio_health() -> dict[str, Any]:
+        engine = camilla.status()
+        levels: dict[str, Any] | None = None
+        error: str | None = None
+        try:
+            levels = camilla.levels()
+        except Exception as caught:
+            error = str(caught)
+        capture_rms = (levels or {}).get("capture_rms") or []
+        playback_rms = (levels or {}).get("playback_rms") or []
+        flowing = any(
+            math.isfinite(float(level)) and float(level) > -120
+            for level in capture_rms
+        )
+        return {
+            "timestamp": utc_timestamp(),
+            "transport": metadata.transport().get("state"),
+            "engine": engine_name(engine),
+            "captureRms": capture_rms,
+            "playbackRms": playback_rms,
+            "pcmFlowing": flowing,
+            "spectrumFlowing": analyzer.levels() is not None,
+            "error": error or engine.get("error") or engine.get("apply_error"),
+        }
 
     @app.get("/api/v1/settings")
     def get_v1_settings() -> dict[str, Any]:

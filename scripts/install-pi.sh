@@ -204,6 +204,7 @@ sudo tee /etc/shairport-sync.conf >/dev/null <<EOF
 general = {
     name = "Coldth";
     output_backend = "alsa";
+    statistics = "yes";
 };
 
 alsa = {
@@ -232,9 +233,12 @@ User=$INSTALL_USER
 Group=$INSTALL_GROUP
 SupplementaryGroups=audio
 WorkingDirectory=$USER_HOME
-ExecStart=$CAMILLA_BIN -s $CAMILLA_DIR/statefile.yml -w -g0 -o $CAMILLA_DIR/camilladsp.log -p 1234
+ExecStart=$CAMILLA_BIN -s $CAMILLA_DIR/statefile.yml -w -g0 -p 1234
 Restart=always
 RestartSec=2
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=camilladsp
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
@@ -283,6 +287,11 @@ ReadWritePaths=$REPO_DIR
 WantedBy=multi-user.target
 EOF
 
+sudo mkdir -p /etc/systemd/system/shairport-sync.service.d
+sudo install -m 0644 \
+  "$REPO_DIR/deploy/shairport-sync-coldth.conf.example" \
+  /etc/systemd/system/shairport-sync.service.d/coldth-ordering.conf
+
 # A full unit in /etc supersedes the packaged unit. Old drop-ins can otherwise
 # override its ExecStart unexpectedly.
 if [[ -d /etc/systemd/system/camilladsp.service.d ]]; then
@@ -296,10 +305,7 @@ fi
 
 sudo systemctl daemon-reload
 sudo systemctl enable camilladsp coldth shairport-sync
-sudo systemctl restart camilladsp
-sleep 2
-sudo systemctl restart coldth
-sudo systemctl restart shairport-sync
+"$REPO_DIR/scripts/restart-audio.sh"
 
 if [[ "$ARTWORK_MODE" == "yes" ]]; then
   artwork_saved=0
