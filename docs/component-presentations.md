@@ -109,8 +109,8 @@ information and album artwork are separate components observing the same
 canonical metadata state, so either can be placed or omitted independently.
 
 The Coldth Faceplate Language controls the physical frame tree containing
-`meters`, `balance`, `spectrum`, `track-info`, `album-art`, `tone`, and
-`presets`. It does not move presentation-generated DOM across component
+`meters`, `balance`, `preamp`, `spectrum`, `track-info`, `album-art`, `tone`,
+and `presets`. It does not move presentation-generated DOM across component
 boundaries or take ownership of the header and service status. Frames expose
 stable `data-frame` hooks and collapse when every optional descendant is
 unavailable.

@@ -9,6 +9,10 @@ MAX_GAIN = 12.0
 GAIN_STEP = 0.5
 MIN_BALANCE = -100
 MAX_BALANCE = 100
+MIN_PREAMP = -12.0
+MAX_PREAMP = 6.0
+PREAMP_STEP = 0.5
+DEFAULT_PREAMP = 0.0
 
 
 class ValidationError(ValueError):
@@ -65,6 +69,20 @@ def validate_balance(value: Any) -> int:
     if balance != value or not MIN_BALANCE <= balance <= MAX_BALANCE:
         raise ValidationError("balance must be a whole number between -100 and 100")
     return balance
+
+
+def validate_preamp(value: Any) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValidationError("preamp must be a number")
+    preamp = float(value)
+    if not MIN_PREAMP <= preamp <= MAX_PREAMP:
+        raise ValidationError(
+            f"preamp must be between {MIN_PREAMP:g} and {MAX_PREAMP:g} dB"
+        )
+    steps = round(preamp / PREAMP_STEP)
+    if abs(preamp - steps * PREAMP_STEP) > 1e-9:
+        raise ValidationError(f"preamp must use {PREAMP_STEP:g} dB increments")
+    return steps * PREAMP_STEP
 
 
 @dataclass(frozen=True)

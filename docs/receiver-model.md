@@ -17,6 +17,41 @@ by [the Coldth Faceplate Language](faceplate-language.md). That language is
 specific to Coldth receiver faceplates and is deliberately not a
 general-purpose UI language.
 
+## Feedback and user agency
+
+Coldth is a feedback panel as well as a modification panel. Its displays may
+be inexpensive approximations, but their meaning must be honest:
+
+- a neutral control value represents the unmodified input;
+- feedback reflects the active preamp, EQ, and balance rather than an
+  untouched source tap;
+- warning colors correspond to fixed signal thresholds and are never
+  decorative moving gradients;
+- overload is shown to the listener instead of silently normalized away; and
+- Coldth may guard against an unsafe hardware output, but it does not protect
+  the listener from intentionally distorted settings.
+
+The listener owns the sound. Coldth owns clear controls and truthful feedback.
+
+## Listener competence
+
+Coldth assumes the listener knows how to operate hi-fi equipment. The primary
+faceplate is an instrument panel, not an onboarding flow:
+
+- preamp, balance, EQ, meters, presets, and overload indicators may use their
+  established audio meanings without inline tutorials;
+- controls remain available across their documented ranges without protective
+  confirmation dialogs;
+- Coldth reports the audible and measurable consequences of a setting instead
+  of deciding that the listener probably did not mean it;
+- labels, units, neutral positions, and warning states must still be precise;
+  and
+- accessibility semantics and reference documentation remain required even
+  when explanatory interface copy is not.
+
+The manual may explain the receiver. The receiver does not stop being a
+receiver in order to teach its own controls.
+
 ## Physical structure
 
 ```text
@@ -100,6 +135,7 @@ Current surfaces are:
 ```text
 meters
 balance
+preamp
 spectrum
 track-info
 album-art

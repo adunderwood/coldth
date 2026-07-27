@@ -17,6 +17,8 @@ NumPy real FFT
         ↓
 ten geometric frequency buckets
         ↓
+Coldth preamp + EQ response
+        ↓
 existing Coldth meter WebSocket
 ```
 
@@ -42,6 +44,14 @@ headphones
 
 If `arecord`, NumPy, or the analyzer thread fails, Coldth shows “analyzer
 standby” and retries. The main CamillaDSP path remains separate.
+
+The PCM tap is physically before CamillaDSP, but Coldth applies the manual
+preamp gain and generated ten-filter response to the measured band levels
+before publishing them. The display therefore approximates the signal after
+the user's controls. This transformation uses the same filter math as the
+CamillaDSP configuration; it does not invent independent animation. Hot and
+red segments warn that the requested settings are approaching or exceeding
+clean digital output.
 
 There is no analyzer network port and no second CamillaDSP process.
 

@@ -12,9 +12,11 @@ def test_state_survives_reopen(tmp_path):
     bands["62"] = -2
     store.set_bands(bands)
     store.set_balance(-24)
+    store.set_preamp(-3.5)
 
     assert StateStore(tmp_path).bands()["62"] == -2
     assert StateStore(tmp_path).balance() == -24
+    assert StateStore(tmp_path).preamp() == -3.5
     assert json.loads((tmp_path / "state.json").read_text())["bands"]["62"] == -2
 
 
@@ -25,6 +27,15 @@ def test_existing_state_without_balance_migrates_to_center(tmp_path):
     store.path.write_text(json.dumps(state))
 
     assert StateStore(tmp_path).balance() == 0
+
+
+def test_existing_state_without_preamp_migrates_to_neutral_default(tmp_path):
+    store = StateStore(tmp_path)
+    state = json.loads(store.path.read_text())
+    state.pop("preamp")
+    store.path.write_text(json.dumps(state))
+
+    assert StateStore(tmp_path).preamp() == 0
 
 
 def test_flat_is_the_only_built_in_preset(tmp_path):

@@ -63,6 +63,7 @@ def test_v1_state_and_tone_commands_share_canonical_state(tmp_path):
         assert state.json()["tone"] == {
             "bands": flat_bands(),
             "balance": 0,
+            "preamp": 0.0,
             "preset": None,
         }
         assert state.json()["capabilities"]["eq"] is True
@@ -76,6 +77,7 @@ def test_v1_state_and_tone_commands_share_canonical_state(tmp_path):
         bands["1000"] = 1.5
         eq = client.put("/api/v1/tone/eq", json={"bands": bands})
         balance = client.put("/api/v1/tone/balance", json={"balance": 12})
+        preamp = client.put("/api/v1/tone/preamp", json={"preamp": -3.5})
 
         assert eq.status_code == 200
         assert eq.json()["revision"] == 1
@@ -83,11 +85,15 @@ def test_v1_state_and_tone_commands_share_canonical_state(tmp_path):
         assert balance.status_code == 200
         assert balance.json()["revision"] == 2
         assert balance.json()["tone"]["balance"] == 12
+        assert preamp.status_code == 200
+        assert preamp.json()["revision"] == 3
+        assert preamp.json()["tone"]["preamp"] == -3.5
 
         current = client.get("/api/v1/state").json()
-        assert current["revision"] == 2
+        assert current["revision"] == 3
         assert current["tone"]["bands"]["1000"] == 1.5
         assert current["tone"]["balance"] == 12
+        assert current["tone"]["preamp"] == -3.5
 
 
 def test_audio_timing_can_be_configured_from_environment(tmp_path, monkeypatch):

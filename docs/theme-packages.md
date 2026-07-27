@@ -75,7 +75,7 @@ Themes contain no JavaScript and no arbitrary HTML.
   "faceplate": "faceplate.yaml",
   "preview": "preview.png",
   "requires": {
-    "components": ["stereo-meters", "eq", "balance"],
+    "components": ["stereo-meters", "eq", "balance", "preamp"],
     "presentations": [
       "coldth.presentation/analog-vu@1",
       "coldth.presentation/vertical-fader@1",
@@ -328,6 +328,7 @@ Coldth's stable receiver surfaces are:
 ```text
 meters      stereo RMS and peak measurements
 balance     stereo balance control
+preamp      manual input gain
 spectrum    ten-band spectrum measurement
 track-info  title, artist, album, and transport state
 album-art   current artwork
@@ -338,8 +339,8 @@ presets     preset controls
 Coldth appends omitted surfaces in the safe default order, so a theme cannot
 accidentally remove an interactive control. The optional `hidden` array
 deliberately suppresses only observational surfaces: `meters`, `spectrum`,
-`track-info`, and `album-art`. Interactive `balance`, `tone`, and `presets`
-cannot be hidden.
+`track-info`, and `album-art`. Interactive `balance`, `preamp`, `tone`, and
+`presets` cannot be hidden.
 
 Frames may nest to eight levels and contain at most 64 total nodes per layout.
 Frame and surface IDs are unique within a layout. Empty frames collapse when

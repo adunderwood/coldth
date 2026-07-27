@@ -68,9 +68,12 @@ meters work without it.
   tuning, which is preferred over continuously filling or draining a buffer.
 - Ten peaking biquads with a fixed Q of 1.4. This is an internal graphic-EQ
   implementation choice, not a user-facing control.
-- Automatic pre-gain equal to the largest positive band gain. This is
-  conservative but prevents an ordinary boosted curve from immediately
-  clipping full-scale input.
+- A persisted manual preamp defaults to neutral `0 dB` and ranges from `-12` to
+  `+6 dB`. EQ faders apply their stated gain literally and never move the
+  preamp behind the user's back.
+- Coldth does not automatically normalize or limit excessive settings.
+  CamillaDSP playback telemetry exposes the resulting post-adjustment level;
+  the DAC's representable full scale remains the final hardware boundary.
 
 ## Unknowns to verify on hardware
 

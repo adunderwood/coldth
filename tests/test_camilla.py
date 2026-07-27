@@ -8,19 +8,50 @@ from coldth.camilla import (
     PersistentCamillaClient,
     SignalLevelClient,
     build_config,
+    eq_spectrum_offsets,
 )
 from coldth.model import flat_bands
 
 
-def test_config_has_stereo_ten_band_pipeline_and_headroom():
+def test_config_has_literal_eq_and_manual_preamp():
     bands = flat_bands()
     bands["62"] = 4
-    config = build_config(bands)
+    config = build_config(bands, preamp=-3)
 
-    assert config["filters"]["coldth_headroom"]["parameters"]["gain"] == -4
+    assert config["filters"]["coldth_preamp"]["parameters"]["gain"] == -3
     assert config["filters"]["coldth_62"]["parameters"]["gain"] == 4
+    assert "coldth_safety_limiter" not in config["filters"]
     assert config["pipeline"][0]["channels"] == [0, 1]
     assert len(config["pipeline"][0]["names"]) == 11
+    assert config["pipeline"][-1]["names"] == ["coldth_balance_right"]
+
+
+def test_eq_sliders_do_not_automatically_change_preamp_gain():
+    bands = flat_bands()
+    bands["1000"] = 6
+    bands["2000"] = 6
+
+    config = build_config(bands, AudioSettings(samplerate=48000), preamp=-4)
+
+    assert config["filters"]["coldth_preamp"]["parameters"]["gain"] == -4
+
+
+def test_spectrum_offsets_model_the_post_eq_signal():
+    bands = flat_bands()
+    bands["31"] = 12
+    bands["62"] = -12
+
+    offsets = eq_spectrum_offsets(bands, 48000, -6)
+
+    assert offsets[0] == pytest.approx(3.4468, abs=0.001)
+    assert offsets[1] == pytest.approx(-15.4468, abs=0.001)
+    assert max(offsets) > 0
+
+
+def test_flat_eq_spectrum_reflects_manual_preamp():
+    assert eq_spectrum_offsets(flat_bands(), 48000, -3) == pytest.approx(
+        [-3.0] * 10
+    )
 
 
 def test_balance_attenuates_only_the_opposite_channel():

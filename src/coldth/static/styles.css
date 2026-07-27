@@ -329,6 +329,7 @@ h2 {
 
 .meters-panel,
 .balance-panel,
+.preamp-panel,
 .spectrum-panel,
 .track-info-panel,
 .album-art-panel {
@@ -383,6 +384,35 @@ h2 {
   text-align: right;
 }
 
+.preamp-control {
+  display: grid;
+  grid-template-columns: 70px minmax(180px, 1fr) 62px;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.preamp-control label {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.preamp-control input[type="range"] {
+  position: static;
+  width: 100%;
+  height: 18px;
+  transform: none;
+}
+
+.preamp-control output {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .meter-row {
   display: grid;
   grid-template-columns: 18px minmax(180px, 1fr) 62px;
@@ -415,12 +445,18 @@ h2 {
 
 .meter-fill {
   display: block;
-  width: 0%;
+  width: 100%;
   height: 100%;
   background:
-    linear-gradient(90deg, var(--accent) 0 76%, var(--meter-warm) 92%, #ff5f4b);
+    linear-gradient(
+      90deg,
+      var(--accent) 0 80%,
+      var(--meter-warm) 80% 90%,
+      #ff5f4b 90% 100%
+    );
   box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 65%, transparent);
-  transition: width 80ms linear;
+  clip-path: inset(0 calc(100% - var(--meter-level, 0%)) 0 0);
+  transition: clip-path 80ms linear;
 }
 
 .peak-marker {
@@ -440,6 +476,13 @@ h2 {
   font-variant-numeric: tabular-nums;
   font-weight: 750;
   text-align: right;
+}
+
+.meter-track.overload,
+.meter-row output.overload {
+  border-color: #ff5f4b;
+  color: #ff5f4b;
+  box-shadow: 0 0 10px #ff5f4b99;
 }
 
 .analyzer-status {
@@ -1100,6 +1143,10 @@ dialog input {
 
   .balance-control {
     grid-template-columns: 14px minmax(130px, 1fr) 14px 54px;
+  }
+
+  .preamp-control {
+    grid-template-columns: 58px minmax(130px, 1fr) 54px;
   }
 
   .analyzer-status {

@@ -28,6 +28,7 @@ REGION_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 SURFACE_IDS = {
     "meters",
     "balance",
+    "preamp",
     "spectrum",
     "track-info",
     "album-art",
@@ -38,6 +39,7 @@ HIDEABLE_SURFACE_IDS = {"meters", "spectrum", "track-info", "album-art"}
 SURFACE_PARTS = {
     "meters": {"channel", "channel-label", "track", "fill", "peak", "value"},
     "balance": {"left-label", "right-label", "legend", "control", "value"},
+    "preamp": {"legend", "control", "value"},
     "spectrum": {"status"},
     "track-info": {"state", "title", "byline"},
     "album-art": {"image"},
@@ -68,6 +70,7 @@ SURFACE_PARTS = {
 COMPONENT_PRESENTATIONS = {
     "eq": {"coldth.presentation/vertical-fader@1"},
     "balance": {"coldth.presentation/horizontal-slider@1"},
+    "preamp": {"coldth.presentation/preamp-slider@1"},
     "stereo-meters": {"coldth.presentation/led-bar@1"},
     "spectrum": {"coldth.presentation/ten-band-overlay@1"},
     "tone-bank": {"coldth.presentation/fader-ladder@1"},

@@ -1,5 +1,6 @@
 export const EQ_COMPONENT = "eq";
 export const BALANCE_COMPONENT = "balance";
+export const PREAMP_COMPONENT = "preamp";
 export const METERS_COMPONENT = "stereo-meters";
 export const SPECTRUM_COMPONENT = "spectrum";
 export const TONE_BANK_COMPONENT = "tone-bank";
@@ -10,6 +11,8 @@ export const EQ_FADER_PRESENTATION =
   "coldth.presentation/vertical-fader@1";
 export const BALANCE_SLIDER_PRESENTATION =
   "coldth.presentation/horizontal-slider@1";
+export const PREAMP_SLIDER_PRESENTATION =
+  "coldth.presentation/preamp-slider@1";
 export const LED_METERS_PRESENTATION = "coldth.presentation/led-bar@1";
 export const SPECTRUM_OVERLAY_PRESENTATION =
   "coldth.presentation/ten-band-overlay@1";
@@ -178,6 +181,53 @@ function mountBalanceSlider({ root, context }) {
   };
 }
 
+function mountPreampSlider({ root, context }) {
+  root.dataset.component = PREAMP_COMPONENT;
+  root.dataset.presentation = PREAMP_SLIDER_PRESENTATION;
+  root.className = "preamp-control";
+  root.replaceChildren();
+
+  const label = document.createElement("label");
+  exposePart(label, "legend");
+  label.htmlFor = "preamp";
+  label.textContent = "Preamp";
+  const slider = document.createElement("input");
+  slider.id = "preamp";
+  slider.type = "range";
+  exposePart(slider, "control");
+  slider.min = context.range.min;
+  slider.max = context.range.max;
+  slider.step = context.range.step;
+  const output = document.createElement("output");
+  exposePart(output, "value");
+
+  let value = context.value;
+  const render = () => {
+    slider.value = value;
+    output.value = context.labelValue(value);
+  };
+  const onInput = () => {
+    value = Number(slider.value);
+    render();
+    context.onInput(value);
+  };
+  slider.addEventListener("input", onInput);
+  root.append(label, slider, output);
+  render();
+
+  return {
+    setValue(nextValue) {
+      value = nextValue;
+      render();
+    },
+    dispose() {
+      slider.removeEventListener("input", onInput);
+      root.replaceChildren();
+      root.classList.remove("preamp-control");
+    },
+  };
+}
+
 function mountLedMeters({ root, options, context }) {
   root.dataset.component = METERS_COMPONENT;
   root.dataset.presentation = LED_METERS_PRESENTATION;
@@ -207,7 +257,7 @@ function mountLedMeters({ root, options, context }) {
     output.value = "−∞";
     row.append(label, track, output);
     root.append(row);
-    return { fill, peak, output };
+    return { track, fill, peak, output };
   });
 
   return {
@@ -223,9 +273,15 @@ function mountLedMeters({ root, options, context }) {
           peakValue,
           heldPeaks[channel] - options.releasePerFrame,
         );
-        row.fill.style.width = `${context.levelPercent(rmsValue)}%`;
+        row.fill.style.setProperty(
+          "--meter-level",
+          `${context.levelPercent(rmsValue)}%`,
+        );
         row.peak.style.left = `${context.levelPercent(heldPeaks[channel])}%`;
         row.output.value = context.formatLevel(peakValue);
+        const overloaded = peakValue >= 0;
+        row.track.classList.toggle("overload", overloaded);
+        row.output.classList.toggle("overload", overloaded);
       });
     },
     dispose() {
@@ -644,6 +700,11 @@ export function registerBuiltins(registry) {
     valueType: "continuous-bipolar",
     capability: "balance",
   });
+  registry.registerComponent({
+    id: PREAMP_COMPONENT,
+    valueType: "continuous-gain",
+    capability: "preamp",
+  });
   registry.registerPresentation({
     id: EQ_FADER_PRESENTATION,
     valueTypes: ["band-collection"],
@@ -665,6 +726,13 @@ export function registerBuiltins(registry) {
     components: [BALANCE_COMPONENT],
     optionsSchema: { properties: {} },
     mount: mountBalanceSlider,
+  });
+  registry.registerPresentation({
+    id: PREAMP_SLIDER_PRESENTATION,
+    valueTypes: ["continuous-gain"],
+    components: [PREAMP_COMPONENT],
+    optionsSchema: { properties: {} },
+    mount: mountPreampSlider,
   });
   registry.registerPresentation({
     id: LED_METERS_PRESENTATION,

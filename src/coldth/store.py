@@ -7,7 +7,15 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from .model import Preset, ValidationError, flat_bands, validate_balance, validate_bands
+from .model import (
+    DEFAULT_PREAMP,
+    Preset,
+    ValidationError,
+    flat_bands,
+    validate_balance,
+    validate_bands,
+    validate_preamp,
+)
 
 DEFAULT_PRIVACY = {"metadata": True, "artwork": False}
 
@@ -26,6 +34,7 @@ class StateStore:
             state = {
                 "bands": flat_bands(),
                 "balance": 0,
+                "preamp": DEFAULT_PREAMP,
                 "presets": [],
                 "privacy": DEFAULT_PRIVACY.copy(),
                 "active_preset": None,
@@ -36,6 +45,7 @@ class StateStore:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             bands = validate_bands(raw.get("bands"))
             balance = validate_balance(raw.get("balance", 0))
+            preamp = validate_preamp(raw.get("preamp", DEFAULT_PREAMP))
             presets = [
                 Preset.from_mapping(item).as_dict() for item in raw.get("presets", [])
             ]
@@ -56,6 +66,7 @@ class StateStore:
         return {
             "bands": bands,
             "balance": balance,
+            "preamp": preamp,
             "presets": presets,
             "privacy": privacy,
             "active_preset": active_preset,
@@ -125,6 +136,18 @@ class StateStore:
         clean = validate_balance(balance)
         with self._lock:
             self._state["balance"] = clean
+            self._write(self._state)
+            self._revision += 1
+            return clean
+
+    def preamp(self) -> float:
+        with self._lock:
+            return self._state["preamp"]
+
+    def set_preamp(self, preamp: Any) -> float:
+        clean = validate_preamp(preamp)
+        with self._lock:
+            self._state["preamp"] = clean
             self._write(self._state)
             self._revision += 1
             return clean

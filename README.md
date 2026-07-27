@@ -133,6 +133,13 @@ The stereo balance control is stored separately from EQ presets. Center leaves
 both channels untouched; moving toward one side progressively attenuates the
 opposite channel, reaching effective silence at full travel.
 
+The preamp is also persistent receiver state rather than part of a preset. It
+defaults to neutral `0 dB`; EQ faders apply their displayed gains literally
+and never change that value automatically. Analyzer ladders include the
+preamp and EQ response, with fixed hot zones serving as overload warnings.
+Coldth reports excessive settings rather than silently normalizing or
+limiting them.
+
 When the Shairport metadata adapter is configured, the receiver shows the
 artist, album, title, and playback state supplied by the AirPlay sender.
 Privacy controls live at `/settings`. Album artwork is opt-in at both the

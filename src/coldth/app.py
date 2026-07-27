@@ -15,15 +15,24 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .analyzer import LocalSpectrumAnalyzer
-from .camilla import AudioSettings, CamillaClient, SignalLevelClient
+from .camilla import (
+    AudioSettings,
+    CamillaClient,
+    SignalLevelClient,
+    eq_spectrum_offsets,
+)
 from .events import EventBus, utc_timestamp
 from .metadata import MetadataTracker, ShairportMetadataAdapter
 from .model import (
     BANDS,
+    DEFAULT_PREAMP,
     MAX_BALANCE,
     MAX_GAIN,
+    MAX_PREAMP,
     MIN_BALANCE,
     MIN_GAIN,
+    MIN_PREAMP,
+    PREAMP_STEP,
     GAIN_STEP,
     ValidationError,
 )
@@ -83,6 +92,9 @@ def create_app(
         os.getenv("COLDTH_ANALYZER_DEVICE"),
         samplerate=settings.samplerate,
     )
+    spectrum_offsets = eq_spectrum_offsets(
+        store.bands(), settings.samplerate, store.preamp()
+    )
     events = EventBus()
     event_loop: asyncio.AbstractEventLoop | None = None
     metadata = MetadataTracker(lambda: store.privacy()["artwork"])
@@ -119,7 +131,10 @@ def create_app(
             if state == "Inactive":
                 logger.warning("CamillaDSP is inactive; reapplying Coldth configuration")
                 applied = await asyncio.to_thread(
-                    camilla.apply, store.bands(), store.balance()
+                    camilla.apply,
+                    store.bands(),
+                    store.balance(),
+                    store.preamp(),
                 )
                 logger.info("CamillaDSP configuration reapplied: %s", applied)
 
@@ -165,12 +180,23 @@ def create_app(
             if stereo
             else []
         )
+        measured_spectrum = analyzer.levels()
+        adjusted_spectrum = (
+            [
+                level + offset
+                for level, offset in zip(
+                    measured_spectrum, spectrum_offsets, strict=True
+                )
+            ]
+            if measured_spectrum is not None
+            else None
+        )
         return {
             "leftRms": rms[0] if len(rms) > 0 else None,
             "rightRms": rms[1] if len(rms) > 1 else None,
             "leftPeak": peaks[0] if len(peaks) > 0 else None,
             "rightPeak": peaks[1] if len(peaks) > 1 else None,
-            "spectrum": analyzer.levels(),
+            "spectrum": adjusted_spectrum,
             "timestamp": utc_timestamp(),
         }
 
@@ -189,7 +215,9 @@ def create_app(
     async def lifespan(_: FastAPI):
         nonlocal event_loop
         event_loop = asyncio.get_running_loop()
-        initial_apply = camilla.apply(store.bands(), store.balance())
+        initial_apply = camilla.apply(
+            store.bands(), store.balance(), store.preamp()
+        )
         logger.info(
             "Initial CamillaDSP configuration applied=%s rate=%s chunk=%s "
             "capture=%s playback=%s",
@@ -254,6 +282,7 @@ def create_app(
             "capabilities": {
                 "eq": True,
                 "balance": True,
+                "preamp": True,
                 "volume": False,
                 "presets": True,
                 "stereoMeters": True,
@@ -264,6 +293,7 @@ def create_app(
             "tone": {
                 "bands": store.bands(),
                 "balance": store.balance(),
+                "preamp": store.preamp(),
                 "preset": store.active_preset(),
             },
             "limits": {
@@ -277,6 +307,12 @@ def create_app(
                     "min": MIN_BALANCE,
                     "max": MAX_BALANCE,
                     "step": 1,
+                },
+                "preamp": {
+                    "min": MIN_PREAMP,
+                    "max": MAX_PREAMP,
+                    "step": PREAMP_STEP,
+                    "default": DEFAULT_PREAMP,
                 },
             },
             "audio": {
@@ -303,11 +339,17 @@ def create_app(
         }
 
     async def apply_eq(payload: dict[str, Any]) -> tuple[dict[str, float], bool]:
+        nonlocal spectrum_offsets
         try:
             bands = store.set_bands(payload.get("bands"))
         except ValidationError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
-        applied = await asyncio.to_thread(camilla.apply, bands, store.balance())
+        spectrum_offsets = eq_spectrum_offsets(
+            bands, settings.samplerate, store.preamp()
+        )
+        applied = await asyncio.to_thread(
+            camilla.apply, bands, store.balance(), store.preamp()
+        )
         await events.publish(
             "tone.changed",
             {"revision": store.revision(), "bands": bands, "preset": None},
@@ -319,12 +361,32 @@ def create_app(
             balance = store.set_balance(payload.get("balance"))
         except ValidationError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
-        applied = await asyncio.to_thread(camilla.apply, store.bands(), balance)
+        applied = await asyncio.to_thread(
+            camilla.apply, store.bands(), balance, store.preamp()
+        )
         await events.publish(
             "tone.changed",
             {"revision": store.revision(), "balance": balance},
         )
         return balance, applied
+
+    async def apply_preamp(payload: dict[str, Any]) -> tuple[float, bool]:
+        nonlocal spectrum_offsets
+        try:
+            preamp = store.set_preamp(payload.get("preamp"))
+        except ValidationError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        spectrum_offsets = eq_spectrum_offsets(
+            store.bands(), settings.samplerate, preamp
+        )
+        applied = await asyncio.to_thread(
+            camilla.apply, store.bands(), store.balance(), preamp
+        )
+        await events.publish(
+            "tone.changed",
+            {"revision": store.revision(), "preamp": preamp},
+        )
+        return preamp, applied
 
     async def save_preset_value(
         payload: dict[str, Any], event_type: str
@@ -340,12 +402,19 @@ def create_app(
         return preset
 
     async def load_preset_value(name: str) -> tuple[dict[str, Any], bool]:
+        nonlocal spectrum_offsets
         try:
             preset = store.load_preset(name)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="Preset not found") from error
+        spectrum_offsets = eq_spectrum_offsets(
+            preset["bands"], settings.samplerate, store.preamp()
+        )
         applied = await asyncio.to_thread(
-            camilla.apply, preset["bands"], store.balance()
+            camilla.apply,
+            preset["bands"],
+            store.balance(),
+            store.preamp(),
         )
         await events.publish(
             "preset.loaded",
@@ -532,6 +601,16 @@ def create_app(
         return {
             "revision": store.revision(),
             "tone": {"balance": balance},
+            "engine": camilla.status(),
+            "applied": applied,
+        }
+
+    @app.put("/api/v1/tone/preamp")
+    async def set_v1_preamp(payload: dict[str, Any]) -> dict[str, Any]:
+        preamp, applied = await apply_preamp(payload)
+        return {
+            "revision": store.revision(),
+            "tone": {"preamp": preamp},
             "engine": camilla.status(),
             "applied": applied,
         }

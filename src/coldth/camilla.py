@@ -7,9 +7,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import websocket
 
-from .model import BANDS, validate_balance, validate_bands
+from .model import (
+    BANDS,
+    DEFAULT_PREAMP,
+    validate_balance,
+    validate_bands,
+    validate_preamp,
+)
 
 
 @dataclass(frozen=True)
@@ -22,23 +29,71 @@ class AudioSettings:
     chunksize: int = 1024
 
 
+def eq_response_db(
+    bands: dict[str, float],
+    frequencies: np.ndarray,
+    samplerate: int,
+    q: float = 1.4,
+) -> np.ndarray:
+    """Return Coldth's complete peaking-EQ response at the given frequencies."""
+    frequencies = np.asarray(frequencies, dtype=np.float64)
+    nyquist = samplerate / 2
+    omega = 2 * np.pi * frequencies / samplerate
+    z1 = np.exp(-1j * omega)
+    z2 = z1 * z1
+    response_db = np.zeros_like(frequencies)
+
+    for frequency in BANDS:
+        gain = bands[str(frequency)]
+        if gain == 0 or frequency >= nyquist:
+            continue
+
+        amplitude = 10 ** (gain / 40)
+        center = 2 * math.pi * frequency / samplerate
+        alpha = math.sin(center) / (2 * q)
+        b0 = 1 + alpha * amplitude
+        b1 = -2 * math.cos(center)
+        b2 = 1 - alpha * amplitude
+        a0 = 1 + alpha / amplitude
+        a1 = -2 * math.cos(center)
+        a2 = 1 - alpha / amplitude
+        response = (b0 + b1 * z1 + b2 * z2) / (a0 + a1 * z1 + a2 * z2)
+        response_db += 20 * np.log10(np.maximum(np.abs(response), 1e-12))
+
+    return response_db
+
+
+def eq_spectrum_offsets(
+    bands: dict[str, float],
+    samplerate: int,
+    preamp: float = DEFAULT_PREAMP,
+) -> list[float]:
+    """Approximate post-EQ analyzer offsets at Coldth's ten band centers."""
+    preamp = validate_preamp(preamp)
+    response = eq_response_db(
+        bands,
+        np.asarray(BANDS, dtype=np.float64),
+        samplerate,
+    )
+    return [float(value + preamp) for value in response]
+
+
 def build_config(
     bands: dict[str, float],
     settings: AudioSettings = AudioSettings(),
     balance: int = 0,
+    preamp: float = DEFAULT_PREAMP,
 ) -> dict[str, Any]:
     bands = validate_bands(bands)
     balance = validate_balance(balance)
-    # Graphic EQ boosts can exceed digital full scale. This conservative,
-    # invisible pre-gain preserves headroom without adding another UI control.
-    headroom = -max(0.0, max(bands.values()))
+    preamp = validate_preamp(preamp)
     filters: dict[str, Any] = {
-        "coldth_headroom": {
+        "coldth_preamp": {
             "type": "Gain",
-            "parameters": {"gain": headroom, "scale": "dB"},
+            "parameters": {"gain": preamp, "scale": "dB"},
         }
     }
-    filter_names = ["coldth_headroom"]
+    filter_names = ["coldth_preamp"]
     for frequency in BANDS:
         name = f"coldth_{frequency}"
         filters[name] = {
@@ -123,8 +178,13 @@ class CamillaClient:
             finally:
                 connection.close()
 
-    def apply(self, bands: dict[str, float], balance: int = 0) -> bool:
-        config = build_config(bands, self.settings, balance)
+    def apply(
+        self,
+        bands: dict[str, float],
+        balance: int = 0,
+        preamp: float = DEFAULT_PREAMP,
+    ) -> bool:
+        config = build_config(bands, self.settings, balance, preamp)
         encoded = json.dumps(config, indent=2) + "\n"
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.config_path.with_suffix(".tmp")

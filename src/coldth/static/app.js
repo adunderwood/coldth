@@ -10,6 +10,8 @@ import {
   LED_METERS_PRESENTATION,
   METERS_COMPONENT,
   NOW_PLAYING_TEXT_PRESENTATION,
+  PREAMP_COMPONENT,
+  PREAMP_SLIDER_PRESENTATION,
   PRESETS_COMPONENT,
   PRESET_SELECTOR_PRESENTATION,
   SPECTRUM_COMPONENT,
@@ -25,6 +27,7 @@ const message = document.querySelector("#message");
 const themeList = document.querySelector("#theme-list");
 const themeStylesheet = document.querySelector("#theme-stylesheet");
 const balanceRoot = document.querySelector("#balance-control");
+const preampRoot = document.querySelector("#preamp-control");
 const metersRoot = document.querySelector("#stereo-meter-control");
 const spectrumRoot = document.querySelector("#spectrum-control");
 const trackInfoRoot = document.querySelector("#track-info-control");
@@ -44,8 +47,10 @@ const layoutFrameElements = new Map();
 
 let bands = {};
 let balance = 0;
+let preamp = 0;
 let updateTimer;
 let balanceTimer;
+let preampTimer;
 let eventSocket;
 let reconnectTimer;
 let currentMetadata = {};
@@ -55,6 +60,7 @@ let activePreset = null;
 let selectedPreset = null;
 let eqControl;
 let balanceControl;
+let preampControl;
 let metersControl;
 let spectrumControl;
 let trackInfoControl;
@@ -77,6 +83,12 @@ const DEFAULT_REGIONS = {
     id: "balance",
     component: BALANCE_COMPONENT,
     presentation: BALANCE_SLIDER_PRESENTATION,
+    options: {},
+  },
+  [PREAMP_COMPONENT]: {
+    id: "preamp",
+    component: PREAMP_COMPONENT,
+    presentation: PREAMP_SLIDER_PRESENTATION,
     options: {},
   },
   [METERS_COMPONENT]: {
@@ -130,6 +142,7 @@ const TOKEN_PROPERTIES = {
 const DEFAULT_SURFACE_FLOW = [
   "meters",
   "balance",
+  "preamp",
   "spectrum",
   "track-info",
   "album-art",
@@ -304,6 +317,10 @@ function applyTone(tone = {}) {
     balance = tone.balance;
     balanceControl?.setValue(balance);
   }
+  if (tone.preamp !== undefined) {
+    preamp = tone.preamp;
+    preampControl?.setValue(preamp);
+  }
   if ("preset" in tone) {
     activePreset = tone.preset;
     if (activePreset) selectedPreset = activePreset;
@@ -344,6 +361,22 @@ function scheduleBalanceUpdate() {
       });
       setEngineStatus(result.engine);
       showMessage(result.applied ? "Balance applied" : "Balance saved", !result.applied);
+    } catch (error) {
+      showMessage(error.message, true);
+    }
+  }, 120);
+}
+
+function schedulePreampUpdate() {
+  clearTimeout(preampTimer);
+  preampTimer = setTimeout(async () => {
+    try {
+      const result = await request("/api/v1/tone/preamp", {
+        method: "PUT",
+        body: JSON.stringify({ preamp }),
+      });
+      setEngineStatus(result.engine);
+      showMessage(result.applied ? "Preamp applied" : "Preamp saved", !result.applied);
     } catch (error) {
       showMessage(error.message, true);
     }
@@ -610,6 +643,7 @@ function disposeControls() {
     albumArtControl,
     metersControl,
     balanceControl,
+    preampControl,
     eqControl,
     toneBankControl,
   ]) {
@@ -629,6 +663,7 @@ function mountControls(state, descriptor) {
   for (const [component, root] of [
     [EQ_COMPONENT, equalizer],
     [BALANCE_COMPONENT, balanceRoot],
+    [PREAMP_COMPONENT, preampRoot],
     [METERS_COMPONENT, metersRoot],
     [SPECTRUM_COMPONENT, spectrumRoot],
     [TRACK_INFO_COMPONENT, trackInfoRoot],
@@ -690,6 +725,19 @@ function mountControls(state, descriptor) {
       },
     },
   });
+  preampControl = controls.mount({
+    ...regions[PREAMP_COMPONENT],
+    root: preampRoot,
+    context: {
+      value: preamp,
+      range: state.limits.preamp,
+      labelValue: labelGain,
+      onInput(nextPreamp) {
+        preamp = nextPreamp;
+        schedulePreampUpdate();
+      },
+    },
+  });
   metersControl = controls.mount({
     ...regions[METERS_COMPONENT],
     root: metersRoot,
@@ -741,6 +789,7 @@ function mountControls(state, descriptor) {
   eqControl?.setValue(bands);
   toneBankControl?.setValue({ bands });
   balanceControl.setValue(balance);
+  preampControl.setValue(preamp);
   presetsControl.setValue({ presets: presetItems, selected: selectedPreset });
 }
 
@@ -753,6 +802,7 @@ async function initialize() {
     currentState = state;
     bands = state.tone.bands;
     balance = state.tone.balance;
+    preamp = state.tone.preamp;
     currentMetadata = state.metadata || {};
     currentTransport = state.transport || {};
     mountControls(state, descriptor);

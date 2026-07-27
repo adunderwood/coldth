@@ -1,6 +1,12 @@
 import pytest
 
-from coldth.model import ValidationError, flat_bands, validate_balance, validate_bands
+from coldth.model import (
+    ValidationError,
+    flat_bands,
+    validate_balance,
+    validate_bands,
+    validate_preamp,
+)
 
 
 def test_flat_bands_has_exact_graphic_eq_frequencies():
@@ -42,3 +48,14 @@ def test_valid_balance(balance):
 def test_invalid_balance(balance):
     with pytest.raises(ValidationError):
         validate_balance(balance)
+
+
+@pytest.mark.parametrize("preamp", [-12, -6, -0.5, 0, 6])
+def test_valid_preamp(preamp):
+    assert validate_preamp(preamp) == float(preamp)
+
+
+@pytest.mark.parametrize("preamp", [-12.5, 0.1, 6.5, True, "loud"])
+def test_invalid_preamp(preamp):
+    with pytest.raises(ValidationError):
+        validate_preamp(preamp)

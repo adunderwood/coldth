@@ -13,6 +13,8 @@ import {
   LED_METERS_PRESENTATION,
   METERS_COMPONENT,
   NOW_PLAYING_TEXT_PRESENTATION,
+  PREAMP_COMPONENT,
+  PREAMP_SLIDER_PRESENTATION,
   PRESETS_COMPONENT,
   PRESET_SELECTOR_PRESENTATION,
   SPECTRUM_COMPONENT,
@@ -33,6 +35,10 @@ test("built-in presentations resolve against semantic components", () => {
     BALANCE_SLIDER_PRESENTATION,
   );
   const meters = registry.resolve(METERS_COMPONENT, LED_METERS_PRESENTATION);
+  const preamp = registry.resolve(
+    PREAMP_COMPONENT,
+    PREAMP_SLIDER_PRESENTATION,
+  );
   const spectrum = registry.resolve(
     SPECTRUM_COMPONENT,
     SPECTRUM_OVERLAY_PRESENTATION,
@@ -57,6 +63,7 @@ test("built-in presentations resolve against semantic components", () => {
   assert.equal(eq.component.valueType, "band-collection");
   assert.deepEqual(eq.options, { orientation: "responsive" });
   assert.equal(balance.component.valueType, "continuous-bipolar");
+  assert.equal(preamp.component.valueType, "continuous-gain");
   assert.deepEqual(meters.options, { releasePerFrame: 0.7 });
   assert.equal(spectrum.component.valueType, "band-measurements");
   assert.equal(toneBank.component.valueType, "tone-bank-state");

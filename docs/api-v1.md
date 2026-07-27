@@ -76,6 +76,7 @@ values, or ALSA topology.
   "capabilities": {
     "eq": true,
     "balance": true,
+    "preamp": true,
     "volume": false,
     "presets": true,
     "stereoMeters": true,
@@ -97,6 +98,7 @@ values, or ALSA topology.
       "16000": 0.0
     },
     "balance": 0,
+    "preamp": -6.0,
     "preset": null
   },
   "limits": {
@@ -110,6 +112,12 @@ values, or ALSA topology.
       "min": -100,
       "max": 100,
       "step": 1
+    },
+    "preamp": {
+      "min": -12.0,
+      "max": 6.0,
+      "step": 0.5,
+      "default": 0.0
     }
   },
   "audio": {
@@ -184,6 +192,20 @@ application status.
 
 Balance ranges from `-100` (left) through `0` (center) to `100` (right).
 
+### Preamp
+
+`PUT /api/v1/tone/preamp`
+
+```json
+{"preamp": 0.0}
+```
+
+Preamp gain ranges from `-12` to `+6 dB` in `0.5 dB` increments, defaults to
+neutral `0 dB`, and persists independently of EQ presets. EQ changes never
+move it automatically. Coldth does not silently normalize or limit excessive
+settings; fixed hot zones and post-adjustment playback meters warn when the
+requested signal is exceeding clean digital output.
+
 ### Presets
 
 ```text
@@ -195,8 +217,9 @@ GET    /api/v1/presets/{name}/export
 POST   /api/v1/presets/import
 ```
 
-The built-in `Flat` preset resets EQ bands. Balance is receiver state and is
-not part of an EQ preset. Loading a preset stores its name in `tone.preset`.
+The built-in `Flat` preset resets EQ bands. Balance and preamp are receiver
+state and are not part of an EQ preset. Loading a preset stores its name in
+`tone.preset`.
 A direct EQ change clears `tone.preset`; replacing or deleting the active
 user preset also clears it.
 
@@ -279,8 +302,12 @@ Measurements use a normalized frame shared by every visualization:
 ```
 
 Levels are dBFS. `spectrum` is either ten values in Coldth band order or
-`null`. This frame is not a promise of laboratory accuracy; it is a promise
-that values derive from real audio.
+`null`. Spectrum values begin with measured input PCM and include Coldth's
+manual preamp and current combined EQ response, approximating the adjusted
+signal. The L/R RMS and peak values are CamillaDSP playback telemetry measured
+after preamp, EQ, and balance. This frame is not a promise of laboratory
+accuracy; it is a promise that values derive from real audio and the active
+signal processing.
 
 ## Event stream
 

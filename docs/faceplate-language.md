@@ -66,6 +66,8 @@ layouts:
               width: fill
             - surface: balance
               width: fill
+            - surface: preamp
+              width: fill
 
         - surface: tone
           width: fill
