@@ -142,7 +142,20 @@ async function initializeThemes() {
 function applyThemeDescriptor(descriptor) {
   const option = themeList.selectedOptions[0];
   if (!option || descriptor.id !== option.value) return;
-  themeStylesheet.href = descriptor.stylesheet;
+  const stylesheets = descriptor.stylesheets || [descriptor.stylesheet];
+  document
+    .querySelectorAll('link[data-inherited-theme-stylesheet="true"]')
+    .forEach((link) => link.remove());
+  themeStylesheet.href = stylesheets[0];
+  let previousStylesheet = themeStylesheet;
+  for (const href of stylesheets.slice(1)) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.dataset.inheritedThemeStylesheet = "true";
+    previousStylesheet.after(link);
+    previousStylesheet = link;
+  }
   document.documentElement.dataset.theme = descriptor.id;
   for (const property of Object.values(TOKEN_PROPERTIES)) {
     document.documentElement.style.removeProperty(property);

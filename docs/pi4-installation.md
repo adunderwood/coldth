@@ -374,14 +374,15 @@ CamillaDSP is inactive or has not started an audio configuration.
 
 ```sh
 cd /home/livingroom/coldth
-git pull
-venv/bin/pip install .
-sudo systemctl restart coldth
+./scripts/update-pi.sh
 ```
 
-When dependencies or the virtual environment have not changed, reinstalling
-the package is still recommended because the systemd service executes the
-installed console entry point.
+The updater requires a clean checkout, performs a fast-forward-only pull,
+reinstalls the checkout into `venv`, restarts Coldth, and verifies the HTTP
+API. Use `./scripts/update-pi.sh --no-pull` when you already pulled the desired
+revision. Reinstallation is required because systemd executes the installed
+package and console entry point rather than importing directly from the Git
+checkout.
 
 ## Troubleshooting
 

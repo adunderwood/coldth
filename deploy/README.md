@@ -6,6 +6,9 @@ not automatically read files from this directory at runtime.
 For a new Raspberry Pi, use `scripts/install-pi.sh`; it detects the actual
 checkout path and account and generates the installed configuration.
 
+For an existing installation, use `scripts/update-pi.sh`; pulling source alone
+does not replace the package imported by the systemd service.
+
 - `coldth.service` — example Coldth service for the original `livingroom`
   installation.
 - `camilladsp.service` — standalone CamillaDSP service for a machine that does

@@ -62,8 +62,10 @@ The secure ZIP loader, persistent theme store, manifest and layout validation,
 built-in presentation compatibility checks, constrained asset serving,
 atomic first install, API endpoints, settings-page installer, semantic-token
 application, orientation-aware layout selection, presentation options, and
-component-level fallback are implemented. Inheritance, physical region
-reordering, version replacement, rollback, and uninstall remain.
+component-level fallback are implemented. Single-parent inheritance now
+resolves CSS, semantic tokens, and matching layout region IDs together, with
+missing-parent and cycle rejection. Physical region reordering, version
+replacement, rollback, and uninstall remain.
 
 The first composite presentation is also implemented: Black 1987 uses the
 landscape `fader-ladder@1` tone bank to pair every EQ band with a discrete,

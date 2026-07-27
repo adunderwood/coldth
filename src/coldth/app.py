@@ -421,6 +421,8 @@ def create_app(
             return themes.descriptor(theme_id)
         except FileNotFoundError as error:
             raise HTTPException(status_code=404, detail="Theme not found") from error
+        except ThemePackageError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     @app.post("/api/v1/themes/install", status_code=201)
     async def install_v1_theme(request: Request) -> dict[str, Any]:

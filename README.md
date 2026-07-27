@@ -97,6 +97,14 @@ or `--without-artwork`; the unattended default is off.
 The installer is safe to re-run, backs up displaced system configuration, and
 finishes with a service health check. See `./scripts/install-pi.sh --help`.
 
+Update an existing Pi checkout and its installed Python package with:
+
+```sh
+./scripts/update-pi.sh
+```
+
+Use `--no-pull` after making or pulling changes yourself.
+
 ## Faceplates and meters
 
 Coldth includes two faceplates: **Original Yellow** and **Black 1987**. The

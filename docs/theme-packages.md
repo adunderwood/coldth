@@ -14,9 +14,9 @@ presentation-option validation are active. Unsafe paths, symlinks, encrypted
 entries, executable formats, HTML, remote CSS, unsafe SVG, oversized archives,
 unknown API versions, and reserved identifiers are rejected.
 
-Inheritance is intentionally rejected in this loader slice. Parent CSS,
-tokens, and region replacement must be implemented as one activation feature;
-Coldth will not silently install a partially inherited theme.
+Single-parent inheritance is active. Coldth resolves parent CSS, tokens, and
+layout regions into one descriptor before activation; it never installs a
+theme whose parent is missing and never activates a partial inheritance chain.
 
 The bundled receiver applies all eight v1 semantic tokens and selects the
 matching `portrait` or `landscape` layout. Layout regions may choose and
@@ -66,7 +66,7 @@ Themes contain no JavaScript and no arbitrary HTML.
   "version": "1.0.0",
   "apiVersion": 1,
   "author": "Example",
-  "extends": "coldth.receiver-base",
+  "extends": "black-1987",
   "styles": "theme.css",
   "preview": "preview.png",
   "layouts": {
@@ -334,7 +334,7 @@ versioned with `apiVersion`.
 A theme may extend exactly one installed parent:
 
 ```json
-{"extends": "coldth.receiver-base"}
+{"extends": "black-1987"}
 ```
 
 Resolution order is:
@@ -345,6 +345,12 @@ Resolution order is:
 
 Circular references and missing parents reject installation. A child replaces
 a layout region by matching its `id`; it does not merge arbitrary DOM.
+
+Parents must already be installed or bundled when the child is installed.
+Effective descriptors expose `lineage` from the root parent through the
+selected child and `stylesheets` in that same cascade order. Child semantic
+tokens override tokens with the same name; unmentioned tokens remain
+inherited.
 
 ## Package installation safety
 

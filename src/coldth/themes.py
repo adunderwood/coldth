@@ -275,6 +275,23 @@ def validate_layout(value: Any) -> dict[str, Any]:
     return {"regions": result}
 
 
+def _merge_layout(
+    parent: dict[str, Any] | None, child: dict[str, Any]
+) -> dict[str, Any]:
+    if parent is None:
+        return {"regions": [dict(region) for region in child["regions"]]}
+    regions = [dict(region) for region in parent["regions"]]
+    positions = {region["id"]: index for index, region in enumerate(regions)}
+    for region in child["regions"]:
+        replacement = dict(region)
+        if replacement["id"] in positions:
+            regions[positions[replacement["id"]]] = replacement
+        else:
+            positions[replacement["id"]] = len(regions)
+            regions.append(replacement)
+    return {"regions": regions}
+
+
 def _validate_css(payload: bytes, package_files: set[str]) -> None:
     try:
         css = payload.decode("utf-8")
@@ -394,7 +411,7 @@ class ThemeRegistry:
             key=lambda theme: (theme["name"].casefold(), theme["id"]),
         )
 
-    def descriptor(self, theme_id: str) -> dict[str, Any]:
+    def _own_descriptor(self, theme_id: str) -> dict[str, Any]:
         summary = next((theme for theme in self.list() if theme["id"] == theme_id), None)
         if summary is None:
             raise FileNotFoundError(theme_id)
@@ -448,8 +465,42 @@ class ThemeRegistry:
         return {
             **summary,
             "apiVersion": THEME_API_VERSION,
+            "extends": manifest.get("extends"),
             "tokens": tokens,
             "layouts": layouts,
+            "stylesheets": [summary["stylesheet"]],
+            "lineage": [theme_id],
+        }
+
+    def descriptor(
+        self, theme_id: str, _ancestors: tuple[str, ...] = ()
+    ) -> dict[str, Any]:
+        if theme_id in _ancestors:
+            chain = " → ".join((*_ancestors, theme_id))
+            raise ThemePackageError(f"Theme inheritance cycle: {chain}")
+        descriptor = self._own_descriptor(theme_id)
+        parent_id = descriptor.get("extends")
+        if not parent_id:
+            return descriptor
+        try:
+            parent = self.descriptor(parent_id, (*_ancestors, theme_id))
+        except FileNotFoundError as error:
+            raise ThemePackageError(
+                f"Parent theme is not installed: {parent_id}"
+            ) from error
+
+        layouts = dict(parent["layouts"])
+        for orientation, layout in descriptor["layouts"].items():
+            layouts[orientation] = _merge_layout(layouts.get(orientation), layout)
+        return {
+            **descriptor,
+            "tokens": {**parent["tokens"], **descriptor["tokens"]},
+            "layouts": layouts,
+            "stylesheets": [
+                *parent["stylesheets"],
+                *descriptor["stylesheets"],
+            ],
+            "lineage": [*parent["lineage"], theme_id],
         }
 
     def install(self, archive: bytes) -> dict[str, Any]:
@@ -521,9 +572,12 @@ class ThemeRegistry:
                         f"Manifest references missing file: {sorted(missing)[0]}"
                     )
                 if manifest.get("extends"):
-                    raise ThemePackageError(
-                        "Theme inheritance is not active in this loader version"
-                    )
+                    try:
+                        self.descriptor(manifest["extends"])
+                    except FileNotFoundError as error:
+                        raise ThemePackageError(
+                            f"Parent theme is not installed: {manifest['extends']}"
+                        ) from error
                 for name in names:
                     if PurePosixPath(name).suffix.lower() == ".css":
                         _validate_css(package.read(name), names)
