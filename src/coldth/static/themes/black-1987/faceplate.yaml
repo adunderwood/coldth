@@ -16,8 +16,12 @@ layouts:
         options:
           orientation: vertical
           segments: 24
-    hidden:
-      - spectrum
+      - id: spectrum
+        component: spectrum
+        presentation: coldth.presentation/ten-band-panel@1
+        options:
+          floor: -60
+          segments: 30
     root:
       frame: receiver
       direction: column
@@ -45,6 +49,9 @@ layouts:
             - surface: preamp
               width: fill
 
+        - surface: spectrum
+          width: fill
+
         - surface: tone
           width: fill
 
@@ -64,8 +71,12 @@ layouts:
         presentation: coldth.presentation/vertical-fader@1
         options:
           orientation: horizontal
-    hidden:
-      - spectrum
+      - id: spectrum
+        component: spectrum
+        presentation: coldth.presentation/ten-band-panel@1
+        options:
+          floor: -60
+          segments: 24
     root:
       frame: receiver
       direction: column
@@ -93,6 +104,9 @@ layouts:
               width: fill
             - surface: preamp
               width: fill
+
+        - surface: spectrum
+          width: fill
 
         - surface: tone
           width: fill

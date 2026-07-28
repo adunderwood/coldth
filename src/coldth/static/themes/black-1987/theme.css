@@ -105,6 +105,39 @@ body {
   background: #484c48;
 }
 
+.spectrum-display {
+  padding: 4px 8px;
+}
+
+.spectrum-heading [data-part="title"] {
+  color: #d7a55b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.spectrum-plot {
+  padding: 14px 18px 4px;
+  border: 1px solid #16251c;
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 30px,
+      #3f5b451f 30px,
+      #3f5b451f 31px
+    ),
+    #020504;
+  box-shadow:
+    inset 0 0 28px #000,
+    0 0 16px #56f29b0a;
+}
+
+.spectrum-band-ladder i {
+  border-color: #101713;
+  background: #29302b;
+}
+
 .primary-button {
   border-color: #37704f;
   background: #173f29;

@@ -20,6 +20,7 @@ import {
   PRESET_SELECTOR_PRESENTATION,
   SPECTRUM_COMPONENT,
   SPECTRUM_OVERLAY_PRESENTATION,
+  SPECTRUM_PANEL_PRESENTATION,
   TONE_BANK_COMPONENT,
   TRACK_INFO_COMPONENT,
   nowPlayingTextState,
@@ -47,6 +48,10 @@ test("built-in presentations resolve against semantic components", () => {
   const spectrum = registry.resolve(
     SPECTRUM_COMPONENT,
     SPECTRUM_OVERLAY_PRESENTATION,
+  );
+  const spectrumPanel = registry.resolve(
+    SPECTRUM_COMPONENT,
+    SPECTRUM_PANEL_PRESENTATION,
   );
   const toneBank = registry.resolve(
     TONE_BANK_COMPONENT,
@@ -76,6 +81,8 @@ test("built-in presentations resolve against semantic components", () => {
   });
   assert.deepEqual(meters.options, { releasePerFrame: 0.7 });
   assert.equal(spectrum.component.valueType, "band-measurements");
+  assert.equal(spectrumPanel.component.valueType, "band-measurements");
+  assert.deepEqual(spectrumPanel.options, { floor: -60, segments: 30 });
   assert.equal(toneBank.component.valueType, "tone-bank-state");
   assert.deepEqual(toneBank.options, {
     orientation: "responsive",
@@ -117,6 +124,13 @@ test("presentation options are schema validated", () => {
         releasePerFrame: 0,
       }),
     /at least/,
+  );
+  assert.throws(
+    () =>
+      registry.resolve(SPECTRUM_COMPONENT, SPECTRUM_PANEL_PRESENTATION, {
+        floor: -20,
+      }),
+    /at most/,
   );
   assert.throws(
     () =>

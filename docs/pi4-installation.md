@@ -283,6 +283,28 @@ Do not use playback-side `plughw` in this arrangement. Convert Shairport's
 enabled, install `deploy/asound-analyzer.conf.example`; its outer `plug` stage
 performs the conversion before duplicating audio.
 
+Some USB DACs expose a separate ALSA hardware playback control. Its setting is
+independent of AirPlay, Coldth's Gain control, and CamillaDSP's global volume,
+and it may default well below 0 dB. For the example card `A`, inspect it with:
+
+```sh
+amixer -c A
+```
+
+If a playback control such as `Headphone` reports attenuation, for example
+`[-20.00dB]`, turn down the physical amplifier before restoring that control
+to its 0 dB position:
+
+```sh
+amixer -c A set Headphone 0dB
+amixer -c A
+```
+
+Using `0dB` is preferable to copying a device-specific raw number such as
+`120`. ALSA raw ranges vary by DAC. This hardware control should normally
+remain at 0 dB; use AirPlay or the amplifier for listening volume, and use
+Coldth's Gain control intentionally as part of the signal processing.
+
 Enable and start:
 
 ```sh
@@ -369,6 +391,16 @@ Expected:
 
 Digital silence is reported as `-1000.0`. Empty vectors indicate that
 CamillaDSP is inactive or has not started an audio configuration.
+
+For a USB DAC, also verify that its hardware mixer is not silently attenuating
+the otherwise healthy digital path:
+
+```sh
+amixer -c A
+```
+
+Replace `A` with the stable card name used by
+`COLDTH_PLAYBACK_DEVICE=hw:CARD=...,DEV=...`.
 
 ## Updating
 
@@ -471,6 +503,34 @@ venv/bin/python -c 'import json,websocket; w=websocket.create_connection("ws://1
 
 If it is `-40.0`, verify the systemd override uses `-g0`. Before raising gain,
 turn down the physical amplifier to avoid a sudden volume jump.
+
+If CamillaDSP reports `0.0` and its playback peaks are healthy but the speakers
+remain unexpectedly quiet, inspect the selected output card's hardware mixer:
+
+```sh
+amixer -c A
+```
+
+For example:
+
+```text
+Simple mixer control 'Headphone',0
+  Front Left: Playback 80 [67%] [-20.00dB] [on]
+  Front Right: Playback 80 [67%] [-20.00dB] [on]
+```
+
+That `-20.00dB` is real attenuation after Coldth's processing. It will not be
+visible in CamillaDSP's playback meters. Turn down the physical amplifier,
+then restore the named hardware control to 0 dB:
+
+```sh
+amixer -c A set Headphone 0dB
+```
+
+Confirm the result says `[0.00dB]`. If `alsamixer` appears empty, it probably
+opened a different default card; select the DAC explicitly with
+`alsamixer -c A`. Do not assume `100%` and `0 dB` are interchangeable: use the
+dB value reported by ALSA.
 
 ## Backup and rollback
 

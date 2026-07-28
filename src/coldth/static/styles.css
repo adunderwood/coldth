@@ -560,6 +560,117 @@ h2 {
   color: var(--accent);
 }
 
+.spectrum-display {
+  display: grid;
+  gap: 18px;
+}
+
+.spectrum-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.spectrum-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.spectrum-heading span,
+.spectrum-heading strong {
+  display: block;
+}
+
+.spectrum-heading [data-part="legend"] {
+  color: var(--receiver-legend);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.spectrum-heading [data-part="title"] {
+  color: var(--text);
+  font-size: 1.15rem;
+}
+
+.spectrum-live-status {
+  color: var(--receiver-legend);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.spectrum-live-status.online {
+  color: var(--receiver-led);
+}
+
+.spectrum-plot {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 210px;
+}
+
+.spectrum-scale {
+  position: relative;
+  height: 184px;
+  color: var(--receiver-legend);
+  font-size: 0.55rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.spectrum-scale span {
+  position: absolute;
+  top: var(--tick-position);
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.spectrum-bands {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(22px, 1fr));
+  gap: clamp(5px, 1.4vw, 16px);
+}
+
+.spectrum-band {
+  display: grid;
+  grid-template-rows: 184px 20px;
+  justify-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.spectrum-band-ladder {
+  display: flex;
+  width: 100%;
+  max-width: 58px;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.spectrum-band-ladder i {
+  display: block;
+  flex: 1;
+  min-height: 2px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, #000);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--receiver-glass) 70%, #777);
+  opacity: 0.36;
+  transition:
+    background 80ms linear,
+    box-shadow 80ms linear,
+    opacity 80ms linear;
+}
+
+.spectrum-band [data-part="label"] {
+  color: var(--receiver-legend);
+  font-size: 0.62rem;
+  font-weight: 750;
+}
+
 .track-info {
   display: grid;
   min-width: 0;
@@ -750,20 +861,23 @@ h2 {
     opacity 80ms linear;
 }
 
-.level-ladder i.active {
+.level-ladder i.active,
+.spectrum-band-ladder i.active {
   border-color: color-mix(in srgb, var(--receiver-meter-normal) 70%, #000);
   background: var(--receiver-meter-normal);
   box-shadow: 0 0 5px color-mix(in srgb, var(--receiver-meter-normal) 60%, transparent);
   opacity: 1;
 }
 
-.level-ladder i.active[data-zone="warm"] {
+.level-ladder i.active[data-zone="warm"],
+.spectrum-band-ladder i.active[data-zone="warm"] {
   border-color: color-mix(in srgb, var(--receiver-meter-warm) 70%, #000);
   background: var(--receiver-meter-warm);
   box-shadow: 0 0 5px color-mix(in srgb, var(--receiver-meter-warm) 60%, transparent);
 }
 
-.level-ladder i.active[data-zone="hot"] {
+.level-ladder i.active[data-zone="hot"],
+.spectrum-band-ladder i.active[data-zone="hot"] {
   border-color: color-mix(in srgb, var(--receiver-meter-hot) 70%, #000);
   background: var(--receiver-meter-hot);
   box-shadow: 0 0 6px color-mix(in srgb, var(--receiver-meter-hot) 70%, transparent);

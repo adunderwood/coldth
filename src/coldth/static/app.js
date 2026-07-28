@@ -660,6 +660,11 @@ function mountControls(state, descriptor) {
       (region) => region.component === TONE_BANK_COMPONENT,
     ),
   );
+  const usesStandaloneSpectrum = Boolean(
+    activeLayout(descriptor)?.regions?.some(
+      (region) => region.component === SPECTRUM_COMPONENT,
+    ),
+  );
   for (const [component, root] of [
     [EQ_COMPONENT, equalizer],
     [BALANCE_COMPONENT, balanceRoot],
@@ -676,7 +681,7 @@ function mountControls(state, descriptor) {
   eqControl = null;
   spectrumControl = null;
   toneBankControl = null;
-  setSurfaceAvailable("spectrum", !usesToneBank);
+  setSurfaceAvailable("spectrum", !usesToneBank || usesStandaloneSpectrum);
   if (usesToneBank) {
     equalizer.dataset.themeRegion = regions[TONE_BANK_COMPONENT].id;
     toneBankControl = controls.mount({
@@ -743,14 +748,16 @@ function mountControls(state, descriptor) {
     root: metersRoot,
     context: { levelPercent, formatLevel },
   });
-  if (!usesToneBank) {
+  if (!usesToneBank || usesStandaloneSpectrum) {
     spectrumControl = controls.mount({
       ...regions[SPECTRUM_COMPONENT],
       root: spectrumRoot,
       context: {
         bandCount: state.limits.eq.frequencies.length,
         eqRoot: equalizer,
-        levelElements: eqControl.parts.levels,
+        levelElements: () => eqControl?.parts?.levels?.() || [],
+        frequencies: state.limits.eq.frequencies,
+        labelFrequency,
         levelPercent,
       },
     });

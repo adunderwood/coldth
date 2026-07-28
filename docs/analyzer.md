@@ -53,6 +53,13 @@ CamillaDSP configuration; it does not invent independent animation. Hot and
 red segments warn that the requested settings are approaching or exceeding
 clean digital output.
 
+Black 1987 consumes these measurements twice: its integrated fader ladders
+remain available as compact per-band feedback, while its standalone
+`ten-band-panel@1` presentation gives the live signal an explicit `-60..0`
+dBFS scale. The EQ faders remain relative `-12..+12 dB` gain controls; their
+positions are not absolute signal targets and are intentionally not expected
+to align with the analyzer columns.
+
 There is no analyzer network port and no second CamillaDSP process.
 
 ## Enable it on a Pi

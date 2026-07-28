@@ -18,6 +18,8 @@ export const PREAMP_KNOB_PRESENTATION =
 export const LED_METERS_PRESENTATION = "coldth.presentation/led-bar@1";
 export const SPECTRUM_OVERLAY_PRESENTATION =
   "coldth.presentation/ten-band-overlay@1";
+export const SPECTRUM_PANEL_PRESENTATION =
+  "coldth.presentation/ten-band-panel@1";
 export const FADER_LADDER_PRESENTATION =
   "coldth.presentation/fader-ladder@1";
 export const NOW_PLAYING_TEXT_PRESENTATION =
@@ -384,6 +386,105 @@ function mountSpectrumOverlay({ root, context }) {
         level.style.removeProperty("--level");
       });
       status.remove();
+    },
+  };
+}
+
+function mountSpectrumPanel({ root, options, context }) {
+  root.dataset.component = SPECTRUM_COMPONENT;
+  root.dataset.presentation = SPECTRUM_PANEL_PRESENTATION;
+  root.className = "spectrum-display";
+  root.replaceChildren();
+
+  const heading = document.createElement("div");
+  heading.className = "spectrum-heading";
+  exposePart(heading, "heading");
+  const titles = document.createElement("div");
+  const eyebrow = document.createElement("span");
+  eyebrow.textContent = "Post-EQ spectrum";
+  exposePart(eyebrow, "legend");
+  const title = document.createElement("strong");
+  title.textContent = `${context.frequencies.length}-band analyzer`;
+  exposePart(title, "title");
+  titles.append(eyebrow, title);
+  const status = document.createElement("span");
+  status.className = "spectrum-live-status";
+  exposePart(status, "status");
+  heading.append(titles, status);
+
+  const plot = document.createElement("div");
+  plot.className = "spectrum-plot";
+  exposePart(plot, "plot");
+  const scale = document.createElement("div");
+  scale.className = "spectrum-scale";
+  exposePart(scale, "scale");
+  for (const value of [0, -12, -24, -36, -48, options.floor]) {
+    const tick = document.createElement("span");
+    tick.textContent = value === 0 ? "0" : `${value}`;
+    tick.style.setProperty(
+      "--tick-position",
+      `${((0 - value) / (0 - options.floor)) * 100}%`,
+    );
+    scale.append(tick);
+  }
+
+  const bands = document.createElement("div");
+  bands.className = "spectrum-bands";
+  exposePart(bands, "bands");
+  const strips = context.frequencies.map((frequency) => {
+    const band = document.createElement("div");
+    band.className = "spectrum-band";
+    exposePart(band, "band");
+    const ladder = document.createElement("div");
+    ladder.className = "spectrum-band-ladder";
+    exposePart(ladder, "ladder");
+    const segments = Array.from({ length: options.segments }, (_, index) => {
+      const segment = document.createElement("i");
+      const segmentDb =
+        options.floor +
+        ((index + 1) / options.segments) * (0 - options.floor);
+      segment.dataset.zone =
+        segmentDb > -6 ? "hot" : segmentDb > -12 ? "warm" : "normal";
+      exposePart(segment, "segment");
+      ladder.append(segment);
+      return segment;
+    });
+    const label = document.createElement("span");
+    label.textContent = context.labelFrequency(frequency);
+    exposePart(label, "label");
+    band.append(ladder, label);
+    bands.append(band);
+    return { ladder, segments };
+  });
+  plot.append(scale, bands);
+  root.append(heading, plot);
+
+  const render = (levels) => {
+    const live =
+      Array.isArray(levels) && levels.length === context.frequencies.length;
+    root.classList.toggle("analyzer-live", live);
+    status.classList.toggle("online", live);
+    status.textContent = live ? "Live" : "Standby";
+    strips.forEach(({ ladder, segments }, index) => {
+      const level = live ? Number(levels[index]) : options.floor;
+      const normalized = Math.max(
+        0,
+        Math.min(1, (level - options.floor) / (0 - options.floor)),
+      );
+      const lit = Math.round(normalized * segments.length);
+      ladder.dataset.activeSegments = String(lit);
+      segments.forEach((segment, segmentIndex) => {
+        segment.classList.toggle("active", segmentIndex < lit);
+      });
+    });
+  };
+  render(null);
+
+  return {
+    setValue: render,
+    dispose() {
+      root.replaceChildren();
+      root.classList.remove("analyzer-live");
     },
   };
 }
@@ -840,6 +941,28 @@ export function registerBuiltins(registry) {
     components: [SPECTRUM_COMPONENT],
     optionsSchema: { properties: {} },
     mount: mountSpectrumOverlay,
+  });
+  registry.registerPresentation({
+    id: SPECTRUM_PANEL_PRESENTATION,
+    valueTypes: ["band-measurements"],
+    components: [SPECTRUM_COMPONENT],
+    optionsSchema: {
+      properties: {
+        floor: {
+          type: "number",
+          minimum: -90,
+          maximum: -48,
+          default: -60,
+        },
+        segments: {
+          type: "number",
+          minimum: 12,
+          maximum: 48,
+          default: 30,
+        },
+      },
+    },
+    mount: mountSpectrumPanel,
   });
   registry.registerPresentation({
     id: FADER_LADDER_PRESENTATION,

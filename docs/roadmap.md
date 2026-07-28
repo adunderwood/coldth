@@ -255,6 +255,11 @@ plain ten-band faders
 The existing integrated fader-ladder presentation remains available to themes
 that want per-fader illumination.
 
+Implemented: `coldth.presentation/ten-band-panel@1` now renders a skinnable
+segmented post-EQ spectrum with an explicit dBFS scale. Black 1987 is its first
+client and temporarily retains the integrated ladders while the faceplate
+evolves.
+
 ### 5. LED marquee track display
 
 Add a built-in `track-info` presentation for Black 1987 that:

@@ -66,6 +66,7 @@ preamp   → coldth.presentation/preamp-slider@1
 preamp   → coldth.presentation/rotary-knob@1
 stereo-meters → coldth.presentation/led-bar@1
 spectrum → coldth.presentation/ten-band-overlay@1
+spectrum → coldth.presentation/ten-band-panel@1
 tone-bank → coldth.presentation/fader-ladder@1
 track-info → coldth.presentation/now-playing-text@1
 album-art → coldth.presentation/album-artwork@1
@@ -86,6 +87,8 @@ should prefer the documented parts:
 meters      channel, channel-label, track, fill, peak, value
 balance     left-label, right-label, legend, control, value
 preamp      legend, control, value, knob, face
+spectrum    heading, legend, title, status, plot, scale, bands, band,
+            ladder, segment, label
 spectrum    status
 track-info  state, title, byline
 album-art   image
