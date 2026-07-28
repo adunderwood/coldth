@@ -58,7 +58,9 @@ remain available as compact per-band feedback, while its standalone
 `ten-band-panel@1` presentation gives the live signal an explicit `-60..0`
 dBFS scale. The EQ faders remain relative `-12..+12 dB` gain controls; their
 positions are not absolute signal targets and are intentionally not expected
-to align with the analyzer columns.
+to align with the analyzer columns. Both Black 1987 analyzer presentations use
+24 segments and the same signal zones: normal below `-12 dBFS`, warm from
+`-12..-6 dBFS`, and hot above `-6 dBFS`.
 
 There is no analyzer network port and no second CamillaDSP process.
 

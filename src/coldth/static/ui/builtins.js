@@ -534,9 +534,10 @@ function mountFaderLadder({ root, options, context }) {
         "--segment-position",
         `${index / Math.max(1, options.segments - 1)}`,
       );
-      const position = index / options.segments;
+      const segmentDb =
+        -60 + ((index + 1) / options.segments) * 60;
       segment.dataset.zone =
-        position >= 0.8 ? "hot" : position >= 0.55 ? "warm" : "normal";
+        segmentDb > -6 ? "hot" : segmentDb > -12 ? "warm" : "normal";
       ladder.append(segment);
       return segment;
     });

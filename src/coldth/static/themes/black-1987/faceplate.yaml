@@ -21,7 +21,7 @@ layouts:
         presentation: coldth.presentation/ten-band-panel@1
         options:
           floor: -60
-          segments: 30
+          segments: 24
     root:
       frame: receiver
       direction: column
