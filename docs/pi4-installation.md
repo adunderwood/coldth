@@ -48,7 +48,7 @@ troubleshooting.
 
 ```sh
 sudo apt update
-sudo apt install git python3-venv alsa-utils shairport-sync
+sudo apt install git nginx python3-venv alsa-utils shairport-sync
 ```
 
 Install an ARM build of CamillaDSP with WebSocket and ALSA support. On a
@@ -243,7 +243,7 @@ Group=livingroom
 SupplementaryGroups=audio
 WorkingDirectory=/home/livingroom/coldth
 Environment=COLDTH_DATA_DIR=/home/livingroom/coldth/data
-Environment=COLDTH_HOST=0.0.0.0
+Environment=COLDTH_HOST=127.0.0.1
 Environment=COLDTH_PORT=8080
 Environment=COLDTH_CAMILLADSP_URL=ws://127.0.0.1:1234
 Environment=COLDTH_SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata
@@ -268,6 +268,21 @@ ReadWritePaths=/home/livingroom/coldth
 [Install]
 WantedBy=multi-user.target
 ```
+
+Coldth listens only on loopback. Install the repository nginx site as the
+public appliance endpoint:
+
+```sh
+sudo install -m 0644 deploy/nginx.conf /etc/nginx/sites-available/coldth
+sudo ln -sfn /etc/nginx/sites-available/coldth \
+  /etc/nginx/sites-enabled/coldth
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
+```
+
+The proxy carries ordinary API requests and the live event WebSocket. It also
+provides a single place to add caching or TLS later without exposing Uvicorn
+to the network.
 
 The Pi headphone device rejects `S32LE` on the tested installation. Keep
 `S16LE` unless `aplay` proves another format works.
@@ -312,7 +327,7 @@ Enable and start:
 
 ```sh
 sudo systemctl daemon-reload
-sudo systemctl enable --now camilladsp coldth shairport-sync
+sudo systemctl enable --now camilladsp coldth nginx shairport-sync
 sudo systemctl restart camilladsp
 sleep 2
 sudo systemctl restart coldth
@@ -371,7 +386,7 @@ restart Shairport.
 
 ## 7. Verify the complete path
 
-Open `http://PI_ADDRESS:8080` or `http://coldth.local:8080` if mDNS is
+Open `http://PI_ADDRESS` or `http://coldth.local` if mDNS is
 available. While AirPlay is playing, verify:
 
 ```sh

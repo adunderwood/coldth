@@ -104,6 +104,9 @@ On a newly imaged Pi, the preferred installation is:
 The installer enables the ten-band analyzer by default. Use
 `--without-analyzer` only to omit it for troubleshooting or a deliberately
 minimal installation.
+It also installs nginx on port 80 and keeps the Coldth application server
+private on `127.0.0.1:8080`, so the receiver opens at `http://coldth.local`
+without a port number.
 Interactive installation also asks whether Shairport should request album
 artwork. For unattended installation, choose explicitly with `--with-artwork`
 or `--without-artwork`; the unattended default is off.

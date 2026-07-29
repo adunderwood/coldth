@@ -424,7 +424,7 @@ Send the package itself as the request body:
 curl --fail-with-body \
   -H 'Content-Type: application/zip' \
   --data-binary @braun.coldth-theme \
-  http://coldth.local:8080/api/v1/themes/install
+  http://coldth.local/api/v1/themes/install
 ```
 
 Coldth returns `201` only after complete validation and atomic installation.

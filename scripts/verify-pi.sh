@@ -5,7 +5,7 @@ failures=0
 ok() { printf 'ok    %s\n' "$1"; }
 bad() { printf 'FAIL  %s\n' "$1"; failures=$((failures + 1)); }
 
-for command in camilladsp arecord shairport-sync; do
+for command in camilladsp arecord nginx shairport-sync; do
   command -v "$command" >/dev/null 2>&1 &&
     ok "$command is installed" ||
     bad "$command is not installed"
@@ -17,7 +17,7 @@ else
   bad "Shairport Sync was built without metadata support"
 fi
 
-for service in camilladsp coldth shairport-sync; do
+for service in camilladsp coldth nginx shairport-sync; do
   systemctl is-active --quiet "$service" &&
     ok "$service is running" ||
     bad "$service is not running"
@@ -39,9 +39,15 @@ else
 fi
 
 if curl -fsS http://127.0.0.1:8080/api/v1/state >/dev/null 2>&1; then
-  ok "Coldth API is responding on 8080"
+  ok "Coldth API is responding on loopback port 8080"
 else
-  bad "Coldth API is not responding on 8080"
+  bad "Coldth API is not responding on loopback port 8080"
+fi
+
+if curl -fsS http://127.0.0.1/api/v1/state >/dev/null 2>&1; then
+  ok "nginx is serving Coldth on port 80"
+else
+  bad "nginx is not serving Coldth on port 80"
 fi
 
 if curl -fsS http://127.0.0.1:8080/api/v1/settings 2>/dev/null |

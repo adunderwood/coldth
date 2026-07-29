@@ -95,7 +95,7 @@ sudo -v
 if [[ $SKIP_PACKAGES -eq 0 ]]; then
   sudo apt-get update
   sudo apt-get install -y \
-    alsa-utils ca-certificates curl git python3 python3-pip python3-venv \
+    alsa-utils ca-certificates curl git nginx python3 python3-pip python3-venv \
     shairport-sync
 fi
 
@@ -214,6 +214,7 @@ backup_once() {
 backup_once /etc/shairport-sync.conf
 backup_once /etc/systemd/system/camilladsp.service
 backup_once /etc/systemd/system/coldth.service
+backup_once /etc/nginx/sites-enabled/default
 
 SHAIRPORT_DEVICE="hw:Loopback,0,0"
 if [[ "$SAMPLE_RATE" != "44100" ]]; then
@@ -298,7 +299,7 @@ Group=$INSTALL_GROUP
 SupplementaryGroups=audio
 WorkingDirectory=$REPO_DIR
 Environment=COLDTH_DATA_DIR=$DATA_DIR
-Environment=COLDTH_HOST=0.0.0.0
+Environment=COLDTH_HOST=127.0.0.1
 Environment=COLDTH_PORT=8080
 Environment=COLDTH_CAMILLADSP_URL=ws://127.0.0.1:1234
 Environment=COLDTH_SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata
@@ -323,6 +324,15 @@ ReadWritePaths=$REPO_DIR
 WantedBy=multi-user.target
 EOF
 
+sudo install -m 0644 "$REPO_DIR/deploy/nginx.conf" \
+  /etc/nginx/sites-available/coldth
+sudo ln -sfn /etc/nginx/sites-available/coldth \
+  /etc/nginx/sites-enabled/coldth
+if [[ -L /etc/nginx/sites-enabled/default ]]; then
+  sudo unlink /etc/nginx/sites-enabled/default
+fi
+sudo nginx -t
+
 sudo mkdir -p /etc/systemd/system/shairport-sync.service.d
 sudo install -m 0644 \
   "$REPO_DIR/deploy/shairport-sync-coldth.conf.example" \
@@ -340,8 +350,9 @@ if [[ -d /etc/systemd/system/camilladsp.service.d ]]; then
 fi
 
 sudo systemctl daemon-reload
-sudo systemctl enable camilladsp coldth shairport-sync
+sudo systemctl enable camilladsp coldth nginx shairport-sync
 "$REPO_DIR/scripts/restart-audio.sh"
+sudo systemctl restart nginx
 
 if [[ "$ARTWORK_MODE" == "yes" ]]; then
   artwork_saved=0
@@ -365,7 +376,7 @@ echo
 "$REPO_DIR/scripts/verify-pi.sh" || true
 echo
 echo "Installation complete."
-echo "Reconnect AirPlay, then open http://$(hostname -I | awk '{print $1}'):8080"
+echo "Reconnect AirPlay, then open http://$(hostname -I | awk '{print $1}')"
 if [[ $WITH_ANALYZER -eq 1 ]]; then
   echo "The ten-band display becomes live after AirPlay opens both loopback feeds."
 fi

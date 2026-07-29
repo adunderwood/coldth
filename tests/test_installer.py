@@ -6,6 +6,7 @@ from pathlib import Path
 
 HELPER = Path(__file__).parents[1] / "scripts" / "lib" / "audio-device.sh"
 INSTALLER = Path(__file__).parents[1] / "scripts" / "install-pi.sh"
+NGINX_CONFIG = Path(__file__).parents[1] / "deploy" / "nginx.conf"
 
 
 def detect_usb_devices(aplay_output: str) -> list[str]:
@@ -58,3 +59,19 @@ def test_installer_help_describes_analyzer_default_and_opt_out():
     assert "--with-analyzer" in result.stdout
     assert "(the default)" in result.stdout
     assert "--without-analyzer" in result.stdout
+
+
+def test_nginx_exposes_port_80_and_proxies_http_and_websockets():
+    config = NGINX_CONFIG.read_text()
+
+    assert "listen 80 default_server;" in config
+    assert "proxy_pass http://127.0.0.1:8080;" in config
+    assert "proxy_set_header Upgrade $http_upgrade;" in config
+    assert "proxy_set_header Connection $connection_upgrade;" in config
+
+
+def test_installed_coldth_backend_is_loopback_only():
+    installer = INSTALLER.read_text()
+
+    assert "Environment=COLDTH_HOST=127.0.0.1" in installer
+    assert "sudo systemctl enable camilladsp coldth nginx shairport-sync" in installer
