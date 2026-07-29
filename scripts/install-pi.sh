@@ -214,7 +214,7 @@ backup_once() {
 backup_once /etc/shairport-sync.conf
 backup_once /etc/systemd/system/camilladsp.service
 backup_once /etc/systemd/system/coldth.service
-backup_once /etc/nginx/sites-enabled/default
+backup_once /etc/nginx/sites-available/default
 
 SHAIRPORT_DEVICE="hw:Loopback,0,0"
 if [[ "$SAMPLE_RATE" != "44100" ]]; then
@@ -328,6 +328,19 @@ sudo install -m 0644 "$REPO_DIR/deploy/nginx.conf" \
   /etc/nginx/sites-available/coldth
 sudo ln -sfn /etc/nginx/sites-available/coldth \
   /etc/nginx/sites-enabled/coldth
+# Older Coldth installers briefly placed this backup inside sites-enabled.
+# nginx includes every file in that directory regardless of its suffix, so
+# move it out before validating the configuration.
+if [[ -e /etc/nginx/sites-enabled/default.coldth-before ]] ||
+   [[ -L /etc/nginx/sites-enabled/default.coldth-before ]]; then
+  if [[ ! -e /etc/nginx/default-site.coldth-before ]] &&
+     [[ ! -L /etc/nginx/default-site.coldth-before ]]; then
+    sudo mv /etc/nginx/sites-enabled/default.coldth-before \
+      /etc/nginx/default-site.coldth-before
+  else
+    sudo unlink /etc/nginx/sites-enabled/default.coldth-before
+  fi
+fi
 if [[ -L /etc/nginx/sites-enabled/default ]]; then
   sudo unlink /etc/nginx/sites-enabled/default
 fi

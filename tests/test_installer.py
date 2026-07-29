@@ -75,3 +75,12 @@ def test_installed_coldth_backend_is_loopback_only():
 
     assert "Environment=COLDTH_HOST=127.0.0.1" in installer
     assert "sudo systemctl enable camilladsp coldth nginx shairport-sync" in installer
+
+
+def test_nginx_default_site_backup_is_not_left_in_sites_enabled():
+    installer = INSTALLER.read_text()
+
+    assert "backup_once /etc/nginx/sites-available/default" in installer
+    assert "backup_once /etc/nginx/sites-enabled/default" not in installer
+    assert "/etc/nginx/sites-enabled/default.coldth-before" in installer
+    assert "/etc/nginx/default-site.coldth-before" in installer
