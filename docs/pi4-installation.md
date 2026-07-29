@@ -24,6 +24,13 @@ From a fresh clone, run:
 ./scripts/install-pi.sh
 ```
 
+When `COLDTH_PLAYBACK_DEVICE` is unset, the installer automatically selects
+one attached USB Audio playback device by its stable ALSA card name and uses
+48 kHz with a 2048-frame chunk. If no USB output exists, it uses the Raspberry
+Pi headphone output when available. Multiple USB outputs are intentionally not
+guessed; choose one explicitly in that case. The installer stops before
+writing service configuration when it cannot identify a usable output.
+
 For the exact setup including the experimental ten-band display:
 
 ```sh

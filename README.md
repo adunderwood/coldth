@@ -105,7 +105,10 @@ Interactive installation also asks whether Shairport should request album
 artwork. For unattended installation, choose explicitly with `--with-artwork`
 or `--without-artwork`; the unattended default is off.
 The installer is safe to re-run, backs up displaced system configuration, and
-finishes with a service health check. See `./scripts/install-pi.sh --help`.
+finishes with a service health check. A single attached USB Audio DAC is
+selected automatically with conservative 48 kHz settings; explicit environment
+variables remain available for ambiguous or unusual hardware. See
+`./scripts/install-pi.sh --help`.
 
 Update an existing Pi checkout and its installed Python package with:
 

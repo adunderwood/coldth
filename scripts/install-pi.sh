@@ -24,10 +24,11 @@ Non-interactive installation defaults to no artwork.
 Environment:
   CAMILLA_VERSION  CamillaDSP version to install when missing (default: 3.0.1).
   COLDTH_PLAYBACK_DEVICE
-                   ALSA output device (default: hw:Headphones,0).
+                   ALSA output device. When unset, one USB playback device is
+                   selected automatically, then the Pi headphone output.
   COLDTH_SAMPLE_RATE
-                   Audio processing rate (default: 44100).
-  COLDTH_CHUNKSIZE CamillaDSP chunk size (default: 1024).
+                   Audio processing rate (USB default: 48000; Pi: 44100).
+  COLDTH_CHUNKSIZE CamillaDSP chunk size (USB default: 2048; Pi: 1024).
 EOF
 }
 
@@ -68,20 +69,16 @@ USER_HOME="$(getent passwd "$INSTALL_USER" | cut -d: -f6)"
 VENV_DIR="$REPO_DIR/venv"
 DATA_DIR="$REPO_DIR/data"
 CAMILLA_DIR="$USER_HOME/camilladsp"
-PLAYBACK_DEVICE="${COLDTH_PLAYBACK_DEVICE:-hw:Headphones,0}"
-SAMPLE_RATE="${COLDTH_SAMPLE_RATE:-44100}"
-CHUNKSIZE="${COLDTH_CHUNKSIZE:-1024}"
+PLAYBACK_DEVICE="${COLDTH_PLAYBACK_DEVICE:-}"
+SAMPLE_RATE="${COLDTH_SAMPLE_RATE:-}"
+CHUNKSIZE="${COLDTH_CHUNKSIZE:-}"
+PLAYBACK_SOURCE="explicit"
+
+# shellcheck source=scripts/lib/audio-device.sh
+source "$REPO_DIR/scripts/lib/audio-device.sh"
 
 if [[ ! -f "$REPO_DIR/pyproject.toml" ]]; then
   echo "Could not identify the Coldth repository at $REPO_DIR" >&2
-  exit 1
-fi
-if [[ ! "$SAMPLE_RATE" =~ ^[1-9][0-9]*$ ]]; then
-  echo "COLDTH_SAMPLE_RATE must be a positive integer." >&2
-  exit 1
-fi
-if [[ ! "$CHUNKSIZE" =~ ^[1-9][0-9]*$ ]]; then
-  echo "COLDTH_CHUNKSIZE must be a positive integer." >&2
   exit 1
 fi
 if [[ ! -r /proc/device-tree/model ]] ||
@@ -89,14 +86,6 @@ if [[ ! -r /proc/device-tree/model ]] ||
   echo "This installer is intended for Raspberry Pi OS." >&2
   exit 1
 fi
-
-echo "Coldth repository: $REPO_DIR"
-echo "Service account:    $INSTALL_USER"
-echo "Playback device:    $PLAYBACK_DEVICE"
-echo "Sample rate:        $SAMPLE_RATE"
-echo "Chunk size:         $CHUNKSIZE"
-echo "Analyzer:           $([[ $WITH_ANALYZER -eq 1 ]] && echo enabled || echo disabled)"
-echo "Album artwork:      $([[ "$ARTWORK_MODE" == "yes" ]] && echo enabled || echo disabled)"
 
 sudo -v
 
@@ -106,6 +95,55 @@ if [[ $SKIP_PACKAGES -eq 0 ]]; then
     alsa-utils ca-certificates curl git python3 python3-pip python3-venv \
     shairport-sync
 fi
+
+if [[ -z "$PLAYBACK_DEVICE" ]]; then
+  mapfile -t usb_playback_devices < <(
+    aplay -l 2>/dev/null | coldth_usb_playback_devices
+  )
+  if [[ ${#usb_playback_devices[@]} -eq 1 ]]; then
+    PLAYBACK_DEVICE="${usb_playback_devices[0]}"
+    PLAYBACK_SOURCE="usb"
+    echo "Detected USB playback device: $PLAYBACK_DEVICE"
+  elif [[ ${#usb_playback_devices[@]} -gt 1 ]]; then
+    echo "Multiple USB playback devices were detected:" >&2
+    printf '  %s\n' "${usb_playback_devices[@]}" >&2
+    echo "Rerun with COLDTH_PLAYBACK_DEVICE set to the intended device." >&2
+    exit 1
+  elif aplay -L 2>/dev/null | grep -q 'Headphones'; then
+    PLAYBACK_DEVICE="hw:Headphones,0"
+    PLAYBACK_SOURCE="headphones"
+    echo "Detected Raspberry Pi headphone output: $PLAYBACK_DEVICE"
+  else
+    echo "No supported USB or Raspberry Pi headphone playback device was detected." >&2
+    echo "Available playback hardware:" >&2
+    aplay -l >&2 || true
+    echo "Connect a DAC or rerun with COLDTH_PLAYBACK_DEVICE set explicitly." >&2
+    exit 1
+  fi
+fi
+
+if [[ -z "$SAMPLE_RATE" ]]; then
+  [[ "$PLAYBACK_SOURCE" == "usb" ]] && SAMPLE_RATE=48000 || SAMPLE_RATE=44100
+fi
+if [[ -z "$CHUNKSIZE" ]]; then
+  [[ "$PLAYBACK_SOURCE" == "usb" ]] && CHUNKSIZE=2048 || CHUNKSIZE=1024
+fi
+if [[ ! "$SAMPLE_RATE" =~ ^[1-9][0-9]*$ ]]; then
+  echo "COLDTH_SAMPLE_RATE must be a positive integer." >&2
+  exit 1
+fi
+if [[ ! "$CHUNKSIZE" =~ ^[1-9][0-9]*$ ]]; then
+  echo "COLDTH_CHUNKSIZE must be a positive integer." >&2
+  exit 1
+fi
+
+echo "Coldth repository: $REPO_DIR"
+echo "Service account:    $INSTALL_USER"
+echo "Playback device:    $PLAYBACK_DEVICE ($PLAYBACK_SOURCE)"
+echo "Sample rate:        $SAMPLE_RATE"
+echo "Chunk size:         $CHUNKSIZE"
+echo "Analyzer:           $([[ $WITH_ANALYZER -eq 1 ]] && echo enabled || echo disabled)"
+echo "Album artwork:      $([[ "$ARTWORK_MODE" == "yes" ]] && echo enabled || echo disabled)"
 
 install_camilladsp() {
   if command -v camilladsp >/dev/null 2>&1; then
@@ -162,11 +200,6 @@ fi
 sudo install -m 0644 "$REPO_DIR/deploy/snd-aloop.conf" \
   /etc/modules-load.d/snd-aloop.conf
 sudo modprobe snd-aloop
-
-if ! aplay -L | grep -q 'Headphones'; then
-  echo "Warning: ALSA did not advertise a device containing 'Headphones'." >&2
-  echo "Review 'aplay -L' or rerun with COLDTH_PLAYBACK_DEVICE set." >&2
-fi
 
 backup_once() {
   local path="$1"
