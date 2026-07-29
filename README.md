@@ -6,7 +6,8 @@ that should have been simple all along: the EQ.
 
 The project is an early but working MVP. The base AirPlay → EQ → Pi headphone
 path and live stereo meters have been exercised on a dedicated Raspberry Pi 4.
-The optional ten-band analyzer remains experimental.
+The ten-band analyzer is installed by default and remains failure-isolated from
+the speaker path.
 
 ## Architecture
 
@@ -67,7 +68,7 @@ Environment variables:
 For installation, start with the complete
 [Raspberry Pi 4 guide](docs/pi4-installation.md). See
 [audio architecture](docs/audio-architecture.md) for design decisions and the
-[optional ten-band analyzer](docs/analyzer.md) for the experimental ALSA
+[ten-band analyzer](docs/analyzer.md) using an ALSA
 fan-out setup.
 
 The current development contract lives in the v1 namespace and is documented
@@ -100,7 +101,9 @@ On a newly imaged Pi, the preferred installation is:
 ./scripts/install-pi.sh
 ```
 
-Add `--with-analyzer` to enable the experimental ten-band FFT from the start.
+The installer enables the ten-band analyzer by default. Use
+`--without-analyzer` only to omit it for troubleshooting or a deliberately
+minimal installation.
 Interactive installation also asks whether Shairport should request album
 artwork. For unattended installation, choose explicitly with `--with-artwork`
 or `--without-artwork`; the unattended default is off.

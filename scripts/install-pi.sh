@@ -2,7 +2,7 @@
 set -euo pipefail
 
 CAMILLA_VERSION="${CAMILLA_VERSION:-3.0.1}"
-WITH_ANALYZER=0
+WITH_ANALYZER=1
 ARTWORK_MODE="ask"
 SKIP_PACKAGES=0
 
@@ -12,7 +12,9 @@ Install Coldth on a dedicated Raspberry Pi.
 
 Usage: ./scripts/install-pi.sh [options]
 
-  --with-analyzer  Enable the experimental ten-band FFT and ALSA fan-out.
+  --with-analyzer  Enable the ten-band FFT and ALSA fan-out (the default).
+  --without-analyzer
+                   Install without spectrum analysis (troubleshooting mode).
   --with-artwork   Request and display AirPlay album artwork.
   --without-artwork
                    Do not request AirPlay album artwork.
@@ -35,6 +37,7 @@ EOF
 while (($#)); do
   case "$1" in
     --with-analyzer) WITH_ANALYZER=1 ;;
+    --without-analyzer) WITH_ANALYZER=0 ;;
     --with-artwork) ARTWORK_MODE="yes" ;;
     --without-artwork) ARTWORK_MODE="no" ;;
     --skip-packages) SKIP_PACKAGES=1 ;;

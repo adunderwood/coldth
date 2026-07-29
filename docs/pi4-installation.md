@@ -13,8 +13,8 @@ AirPlay → Shairport Sync → ALSA Loopback → CamillaDSP :1234
                                       Pi headphones
 ```
 
-The optional ten-band analyzer is described in
-[analyzer.md](analyzer.md). Get the base path working first.
+The ten-band analyzer is described in [analyzer.md](analyzer.md). The installer
+enables it by default while keeping it outside the speaker path.
 
 ## Recommended: automated installation
 
@@ -31,18 +31,14 @@ Pi headphone output when available. Multiple USB outputs are intentionally not
 guessed; choose one explicitly in that case. The installer stops before
 writing service configuration when it cannot identify a usable output.
 
-For the exact setup including the experimental ten-band display:
-
-```sh
-./scripts/install-pi.sh --with-analyzer
-```
-
 The installer performs the steps in this guide, derives the service account
 and repository paths, backs up replaced configuration with a
 `.coldth-before` suffix, and runs `scripts/verify-pi.sh`. It can be re-run to
 repair or update the installation. It asks whether to enable album artwork and
 configures both Shairport solicitation and Coldth's persisted preference from
-that answer. Automated installations can pass `--with-artwork` or
+that answer. The analyzer is part of the default installation; pass
+`--without-analyzer` only for troubleshooting or a deliberately minimal
+installation. Automated installations can pass `--with-artwork` or
 `--without-artwork`; the non-interactive default is off.
 
 Use the remaining sections for understanding, manual installation, and
@@ -251,7 +247,7 @@ Environment=COLDTH_HOST=0.0.0.0
 Environment=COLDTH_PORT=8080
 Environment=COLDTH_CAMILLADSP_URL=ws://127.0.0.1:1234
 Environment=COLDTH_SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata
-# Optional; omit until docs/analyzer.md has been completed:
+# Installed by default; omit only when using --without-analyzer:
 Environment=COLDTH_ANALYZER_DEVICE=hw:Loopback,1,1
 Environment=COLDTH_CAPTURE_DEVICE=hw:Loopback,1,0
 Environment=COLDTH_PLAYBACK_DEVICE=hw:Headphones,0

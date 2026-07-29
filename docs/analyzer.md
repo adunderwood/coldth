@@ -1,4 +1,4 @@
-# Optional ten-band analyzer
+# Ten-band analyzer
 
 Coldth's L/R meters come from CamillaDSP's playback peak and RMS telemetry.
 Those numbers contain no frequency information. The ten-band display therefore
@@ -64,10 +64,16 @@ to align with the analyzer columns. Both Black 1987 analyzer presentations use
 
 There is no analyzer network port and no second CamillaDSP process.
 
-## Enable it on a Pi
+## Install it on a Pi
 
-The base installation must already be working. Confirm that ALSA Loopback
-offers at least two subdevices:
+The automated installer enables the analyzer by default:
+
+```sh
+./scripts/install-pi.sh
+```
+
+Use the remaining steps when configuring an existing or manual installation.
+First confirm that ALSA Loopback offers at least two subdevices:
 
 ```sh
 aplay -l
@@ -136,9 +142,11 @@ soon as complete PCM windows arrive.
 This records one second from the analyzer substream and throws it away:
 
 ```sh
-arecord -q -D hw:Loopback,1,1 -f S16_LE -c 2 -r 44100 \
+arecord -q -D hw:Loopback,1,1 -f S16_LE -c 2 -r 48000 \
   -d 1 -t raw > /dev/null
 ```
+
+Use Coldth's configured processing rate in place of `48000` when it differs.
 
 If it fails, inspect:
 
@@ -162,5 +170,6 @@ The EQ and stereo meters do not require the ten-band analyzer.
 ## Status
 
 The FFT implementation is tested with generated PCM tones. The two-substream
-ALSA fan-out remains experimental until it completes a long playback session
-on the target Pi without underruns or clock drift.
+ALSA fan-out has also completed multi-song playback without dropouts on a
+Raspberry Pi Zero 2 W with an Apple USB DAC. It remains failure-isolated so a
+worker failure disables the display rather than interrupting playback.

@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 HELPER = Path(__file__).parents[1] / "scripts" / "lib" / "audio-device.sh"
+INSTALLER = Path(__file__).parents[1] / "scripts" / "install-pi.sh"
 
 
 def detect_usb_devices(aplay_output: str) -> list[str]:
@@ -37,3 +38,23 @@ card 3: DAC [USB DAC], device 0: USB Audio [USB Audio]
 card 4: Conference [USB Conference], device 1: USB Audio [USB Audio]
 """
     ) == ["hw:CARD=DAC,DEV=0", "hw:CARD=Conference,DEV=1"]
+
+
+def test_analyzer_is_enabled_by_default_and_can_be_disabled():
+    installer = INSTALLER.read_text()
+
+    assert "WITH_ANALYZER=1" in installer
+    assert "--without-analyzer) WITH_ANALYZER=0" in installer
+
+
+def test_installer_help_describes_analyzer_default_and_opt_out():
+    result = subprocess.run(
+        ["bash", str(INSTALLER), "--help"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "--with-analyzer" in result.stdout
+    assert "(the default)" in result.stdout
+    assert "--without-analyzer" in result.stdout
