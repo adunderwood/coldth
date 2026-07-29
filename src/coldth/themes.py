@@ -53,7 +53,7 @@ SURFACE_PARTS = {
         "segment",
         "label",
     },
-    "track-info": {"state", "title", "byline"},
+    "track-info": {"state", "title", "byline", "viewport", "line"},
     "album-art": {"image"},
     "tone": {
         "band",
@@ -92,7 +92,10 @@ COMPONENT_PRESENTATIONS = {
         "coldth.presentation/ten-band-panel@1",
     },
     "tone-bank": {"coldth.presentation/fader-ladder@1"},
-    "track-info": {"coldth.presentation/now-playing-text@1"},
+    "track-info": {
+        "coldth.presentation/now-playing-text@1",
+        "coldth.presentation/matrix-marquee@1",
+    },
     "album-art": {"coldth.presentation/album-artwork@1"},
     "presets": {"coldth.presentation/preset-selector@1"},
 }
@@ -115,6 +118,9 @@ PRESENTATION_OPTIONS: dict[str, dict[str, tuple[type, Any]]] = {
     "coldth.presentation/rotary-knob@1": {
         "startAngle": (int | float, (-180.0, 0.0)),
         "endAngle": (int | float, (0.0, 180.0)),
+    },
+    "coldth.presentation/matrix-marquee@1": {
+        "pixelsPerSecond": (int | float, (20.0, 100.0)),
     },
 }
 

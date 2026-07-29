@@ -69,6 +69,7 @@ spectrum → coldth.presentation/ten-band-overlay@1
 spectrum → coldth.presentation/ten-band-panel@1
 tone-bank → coldth.presentation/fader-ladder@1
 track-info → coldth.presentation/now-playing-text@1
+track-info → coldth.presentation/matrix-marquee@1
 album-art → coldth.presentation/album-artwork@1
 presets  → coldth.presentation/preset-selector@1
 ```
@@ -90,7 +91,7 @@ preamp      legend, control, value, knob, face
 spectrum    heading, legend, title, status, plot, scale, bands, band,
             ladder, segment, label
 spectrum    status
-track-info  state, title, byline
+track-info  state, title, byline, viewport, line
 album-art   image
 tone        band, value, track, level, control-group, control,
             ladder, segment, label

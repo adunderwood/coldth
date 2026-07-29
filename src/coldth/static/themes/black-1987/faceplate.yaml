@@ -22,6 +22,11 @@ layouts:
         options:
           floor: -60
           segments: 24
+      - id: track-info
+        component: track-info
+        presentation: coldth.presentation/matrix-marquee@1
+        options:
+          pixelsPerSecond: 42
     root:
       frame: receiver
       direction: column
@@ -77,6 +82,11 @@ layouts:
         options:
           floor: -60
           segments: 24
+      - id: track-info
+        component: track-info
+        presentation: coldth.presentation/matrix-marquee@1
+        options:
+          pixelsPerSecond: 36
     root:
       frame: receiver
       direction: column

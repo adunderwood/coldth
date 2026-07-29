@@ -24,6 +24,8 @@ export const FADER_LADDER_PRESENTATION =
   "coldth.presentation/fader-ladder@1";
 export const NOW_PLAYING_TEXT_PRESENTATION =
   "coldth.presentation/now-playing-text@1";
+export const MARQUEE_TRACK_INFO_PRESENTATION =
+  "coldth.presentation/matrix-marquee@1";
 export const ALBUM_ARTWORK_PRESENTATION =
   "coldth.presentation/album-artwork@1";
 export const PRESET_SELECTOR_PRESENTATION =
@@ -625,6 +627,69 @@ function mountNowPlayingText({ root, context }) {
   };
 }
 
+function mountMatrixMarquee({ root, options, context }) {
+  root.dataset.component = TRACK_INFO_COMPONENT;
+  root.dataset.presentation = MARQUEE_TRACK_INFO_PRESENTATION;
+  root.className = "matrix-marquee";
+  root.replaceChildren();
+
+  const state = document.createElement("span");
+  state.className = "matrix-marquee-state";
+  exposePart(state, "state");
+  const viewport = document.createElement("div");
+  viewport.className = "matrix-marquee-window";
+  exposePart(viewport, "viewport");
+  const line = document.createElement("strong");
+  line.className = "matrix-marquee-line";
+  exposePart(line, "line");
+  viewport.append(line);
+  root.append(state, viewport);
+
+  let animationFrame = 0;
+  const measure = () => {
+    animationFrame = 0;
+    const distance = Math.max(0, line.scrollWidth - viewport.clientWidth);
+    const scrolling = distance > 1;
+    line.classList.toggle("scrolling", scrolling);
+    line.style.setProperty("--marquee-distance", `${distance}px`);
+    line.style.setProperty(
+      "--marquee-duration",
+      `${Math.max(6, distance / options.pixelsPerSecond + 2.4)}s`,
+    );
+  };
+  const scheduleMeasure = () => {
+    cancelAnimationFrame(animationFrame);
+    animationFrame = requestAnimationFrame(measure);
+  };
+  const resizeObserver = new ResizeObserver(scheduleMeasure);
+  resizeObserver.observe(viewport);
+
+  return {
+    setValue(value = {}) {
+      const display = nowPlayingTextState(value);
+      const metadata = value.metadata || {};
+      context.onAvailability(display.available);
+      if (!display.available) return;
+      state.textContent = display.state;
+      line.textContent = [
+        display.title,
+        metadata.artist,
+        metadata.album,
+      ]
+        .filter(Boolean)
+        .join("  •  ");
+      line.setAttribute("aria-label", line.textContent);
+      scheduleMeasure();
+    },
+    dispose() {
+      context.onAvailability(false);
+      cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      root.replaceChildren();
+    },
+  };
+}
+
 function mountAlbumArtwork({ root, context }) {
   root.dataset.component = ALBUM_ART_COMPONENT;
   root.dataset.presentation = ALBUM_ARTWORK_PRESENTATION;
@@ -992,6 +1057,22 @@ export function registerBuiltins(registry) {
     components: [TRACK_INFO_COMPONENT],
     optionsSchema: { properties: {} },
     mount: mountNowPlayingText,
+  });
+  registry.registerPresentation({
+    id: MARQUEE_TRACK_INFO_PRESENTATION,
+    valueTypes: ["metadata-state"],
+    components: [TRACK_INFO_COMPONENT],
+    optionsSchema: {
+      properties: {
+        pixelsPerSecond: {
+          type: "number",
+          minimum: 20,
+          maximum: 100,
+          default: 42,
+        },
+      },
+    },
+    mount: mountMatrixMarquee,
   });
   registry.registerPresentation({
     id: ALBUM_ARTWORK_PRESENTATION,

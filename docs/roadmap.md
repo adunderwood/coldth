@@ -273,6 +273,13 @@ Add a built-in `track-info` presentation for Black 1987 that:
 Theme CSS owns the font, LED color, glass, mask, and surrounding faceplate.
 Coldth owns animation and accessibility behavior.
 
+Implemented: Black 1987 selects
+`coldth.presentation/matrix-marquee@1`. The trusted presentation scrolls only
+when its complete title/artist/album line exceeds the viewport, pauses at both
+ends, exposes the full line to assistive technology, and disables motion when
+the browser requests reduced motion. The faceplate bundles Bitcount Grid
+Single under the SIL Open Font License and owns its green matrix styling.
+
 ### 6. Preset button presentation and management
 
 Add a second presentation for the existing presets component. It renders one

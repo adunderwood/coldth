@@ -700,6 +700,58 @@ h2 {
   white-space: nowrap;
 }
 
+.matrix-marquee {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.matrix-marquee-state {
+  color: var(--receiver-legend);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.matrix-marquee-window {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.matrix-marquee-line {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  white-space: nowrap;
+}
+
+.matrix-marquee-line.scrolling {
+  animation: coldth-matrix-marquee var(--marquee-duration, 10s) ease-in-out
+    infinite alternate;
+}
+
+@keyframes coldth-matrix-marquee {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+
+  88%,
+  100% {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matrix-marquee-line.scrolling {
+    width: 100%;
+    overflow: hidden;
+    animation: none;
+    text-overflow: ellipsis;
+  }
+}
+
 .album-art {
   display: grid;
   place-items: center;

@@ -12,6 +12,7 @@ import {
   FADER_LADDER_PRESENTATION,
   LED_METERS_PRESENTATION,
   METERS_COMPONENT,
+  MARQUEE_TRACK_INFO_PRESENTATION,
   NOW_PLAYING_TEXT_PRESENTATION,
   PREAMP_COMPONENT,
   PREAMP_KNOB_PRESENTATION,
@@ -61,6 +62,10 @@ test("built-in presentations resolve against semantic components", () => {
     TRACK_INFO_COMPONENT,
     NOW_PLAYING_TEXT_PRESENTATION,
   );
+  const marquee = registry.resolve(
+    TRACK_INFO_COMPONENT,
+    MARQUEE_TRACK_INFO_PRESENTATION,
+  );
   const albumArt = registry.resolve(
     ALBUM_ART_COMPONENT,
     ALBUM_ARTWORK_PRESENTATION,
@@ -89,6 +94,8 @@ test("built-in presentations resolve against semantic components", () => {
     segments: 24,
   });
   assert.equal(trackInfo.component.valueType, "metadata-state");
+  assert.equal(marquee.component.valueType, "metadata-state");
+  assert.deepEqual(marquee.options, { pixelsPerSecond: 42 });
   assert.equal(albumArt.component.valueType, "artwork-state");
   assert.equal(presets.component.valueType, "preset-collection");
 });
@@ -103,6 +110,15 @@ test("presentation options are schema validated", () => {
         orientation: "diagonal",
       }),
     /must be one of/,
+  );
+  assert.throws(
+    () =>
+      registry.resolve(
+        TRACK_INFO_COMPONENT,
+        MARQUEE_TRACK_INFO_PRESENTATION,
+        { pixelsPerSecond: 10 },
+      ),
+    /at least/,
   );
   assert.throws(
     () =>
