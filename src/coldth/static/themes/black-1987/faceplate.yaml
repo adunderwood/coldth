@@ -34,11 +34,8 @@ layouts:
       children:
         - frame: now-playing
           direction: row
-          gap: 24
           padding: 32
           children:
-            - surface: album-art
-              width: 64
             - surface: track-info
               width: fill
 
@@ -94,12 +91,9 @@ layouts:
       children:
         - frame: now-playing
           direction: column
-          gap: 20
           padding: 24
           align: stretch
           children:
-            - surface: album-art
-              width: 64
             - surface: track-info
               width: fill
 
