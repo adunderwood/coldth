@@ -727,7 +727,13 @@ h2 {
 
 .matrix-marquee-copy {
   display: none;
-  padding-inline-start: 48px;
+}
+
+.matrix-marquee-copy::before {
+  display: inline-block;
+  width: 48px;
+  content: "•";
+  text-align: center;
 }
 
 .matrix-marquee-line.scrolling .matrix-marquee-copy {
