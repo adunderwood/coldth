@@ -647,6 +647,12 @@ function mountMatrixMarquee({ root, options, context }) {
   const copy = document.createElement("span");
   copy.className = "matrix-marquee-copy";
   copy.setAttribute("aria-hidden", "true");
+  const separator = document.createElement("span");
+  separator.className = "matrix-marquee-separator";
+  separator.textContent = "•";
+  const repeatedMessage = document.createElement("span");
+  repeatedMessage.className = "matrix-marquee-message";
+  copy.append(separator, repeatedMessage);
   line.append(message, copy);
   viewport.append(line);
   root.append(state, viewport);
@@ -657,9 +663,9 @@ function mountMatrixMarquee({ root, options, context }) {
     line.classList.remove("scrolling");
     const messageWidth = message.getBoundingClientRect().width;
     const scrolling = messageWidth - viewport.clientWidth > 1;
-    const gap = 48;
-    const distance = messageWidth + gap;
     line.classList.toggle("scrolling", scrolling);
+    const gap = scrolling ? separator.getBoundingClientRect().width : 0;
+    const distance = messageWidth + gap;
     line.style.setProperty("--marquee-distance", `${distance}px`);
     line.style.setProperty(
       "--marquee-duration",
@@ -688,7 +694,7 @@ function mountMatrixMarquee({ root, options, context }) {
         .filter(Boolean)
         .join("  •  ");
       message.textContent = text;
-      copy.textContent = text;
+      repeatedMessage.textContent = text;
       line.setAttribute("aria-label", text);
       scheduleMeasure();
     },

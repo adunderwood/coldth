@@ -729,15 +729,14 @@ h2 {
   display: none;
 }
 
-.matrix-marquee-copy::before {
+.matrix-marquee-separator {
   display: inline-block;
-  width: 48px;
-  content: "•";
+  padding-inline: 1em;
   text-align: center;
 }
 
 .matrix-marquee-line.scrolling .matrix-marquee-copy {
-  display: inline;
+  display: inline-flex;
 }
 
 .matrix-marquee-line.scrolling {
