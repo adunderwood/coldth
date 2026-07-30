@@ -727,8 +727,7 @@ h2 {
 }
 
 .matrix-marquee-line.scrolling {
-  animation: coldth-matrix-marquee var(--marquee-duration, 10s) ease-in-out
-    infinite alternate;
+  animation: coldth-matrix-marquee var(--marquee-duration, 10s) linear infinite;
 }
 
 @keyframes coldth-matrix-marquee {

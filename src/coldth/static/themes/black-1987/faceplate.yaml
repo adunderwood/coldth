@@ -39,6 +39,9 @@ layouts:
             - surface: track-info
               width: fill
 
+        - surface: spectrum
+          width: fill
+
         - frame: stereo
           direction: column
           gap: 24
@@ -51,14 +54,13 @@ layouts:
             - surface: preamp
               width: fill
 
-        - surface: spectrum
-          width: fill
-
         - surface: tone
           width: fill
 
         - surface: presets
           width: fill
+    hidden:
+      - album-art
 
   portrait:
     regions:
@@ -97,6 +99,9 @@ layouts:
             - surface: track-info
               width: fill
 
+        - surface: spectrum
+          width: fill
+
         - frame: stereo
           direction: column
           gap: 24
@@ -109,11 +114,10 @@ layouts:
             - surface: preamp
               width: fill
 
-        - surface: spectrum
-          width: fill
-
         - surface: tone
           width: fill
 
         - surface: presets
           width: fill
+    hidden:
+      - album-art
