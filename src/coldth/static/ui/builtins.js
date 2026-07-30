@@ -642,19 +642,28 @@ function mountMatrixMarquee({ root, options, context }) {
   const line = document.createElement("strong");
   line.className = "matrix-marquee-line";
   exposePart(line, "line");
+  const message = document.createElement("span");
+  message.className = "matrix-marquee-message";
+  const copy = document.createElement("span");
+  copy.className = "matrix-marquee-copy";
+  copy.setAttribute("aria-hidden", "true");
+  line.append(message, copy);
   viewport.append(line);
   root.append(state, viewport);
 
   let animationFrame = 0;
   const measure = () => {
     animationFrame = 0;
-    const distance = Math.max(0, line.scrollWidth - viewport.clientWidth);
-    const scrolling = distance > 1;
+    line.classList.remove("scrolling");
+    const messageWidth = message.getBoundingClientRect().width;
+    const scrolling = messageWidth - viewport.clientWidth > 1;
+    const gap = 48;
+    const distance = messageWidth + gap;
     line.classList.toggle("scrolling", scrolling);
     line.style.setProperty("--marquee-distance", `${distance}px`);
     line.style.setProperty(
       "--marquee-duration",
-      `${Math.max(6, distance / options.pixelsPerSecond + 2.4)}s`,
+      `${Math.max(6, distance / options.pixelsPerSecond)}s`,
     );
   };
   const scheduleMeasure = () => {
@@ -671,14 +680,16 @@ function mountMatrixMarquee({ root, options, context }) {
       context.onAvailability(display.available);
       if (!display.available) return;
       state.textContent = display.state;
-      line.textContent = [
+      const text = [
         display.title,
         metadata.artist,
         metadata.album,
       ]
         .filter(Boolean)
         .join("  •  ");
-      line.setAttribute("aria-label", line.textContent);
+      message.textContent = text;
+      copy.textContent = text;
+      line.setAttribute("aria-label", text);
       scheduleMeasure();
     },
     dispose() {

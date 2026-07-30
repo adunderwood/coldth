@@ -720,10 +720,18 @@ h2 {
 }
 
 .matrix-marquee-line {
-  display: block;
+  display: flex;
   width: max-content;
-  min-width: 100%;
   white-space: nowrap;
+}
+
+.matrix-marquee-copy {
+  display: none;
+  padding-inline-start: 48px;
+}
+
+.matrix-marquee-line.scrolling .matrix-marquee-copy {
+  display: inline;
 }
 
 .matrix-marquee-line.scrolling {
@@ -731,13 +739,11 @@ h2 {
 }
 
 @keyframes coldth-matrix-marquee {
-  0%,
-  12% {
+  from {
     transform: translateX(0);
   }
 
-  88%,
-  100% {
+  to {
     transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
   }
 }
@@ -748,6 +754,10 @@ h2 {
     overflow: hidden;
     animation: none;
     text-overflow: ellipsis;
+  }
+
+  .matrix-marquee-line.scrolling .matrix-marquee-copy {
+    display: none;
   }
 }
 
